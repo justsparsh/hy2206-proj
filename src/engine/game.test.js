@@ -495,6 +495,108 @@ suite('the kin contract is a real temptation', () => {
   });
 });
 
+suite('no option is free money', () => {
+  const flat = (effs) => effs.flatMap((e) => (e.type === 'commitment' || e.type === 'later' ? [e, ...e.effects] : [e]));
+  const total = (all, key) => all.filter((e) => e.type === 'meter' && e.key === key).reduce((a, e) => a + e.delta, 0);
+  const outcomesOf = (eventId, choiceId) => EVENTS[eventId].choices.find((c) => c.id === choiceId).outcomes;
+
+  it('every option that raises money costs something else: Capacity, Welfare, a repayment, or a charge', () => {
+    const unpriced = [];
+    for (const ev of Object.values(EVENTS)) {
+      if (typeof ev.choices === 'function') continue;
+      for (const c of ev.choices) {
+        for (const o of c.outcomes) {
+          if (typeof o.effects === 'function') continue;
+          const all = flat(o.effects);
+          if (total(all, 'treasury') <= 0) continue;
+          const costly =
+            total(all, 'capacity') < 0 || total(all, 'welfare') < 0 || (c.charges ?? []).length > 0;
+          if (!costly) unpriced.push(`${ev.id}/${c.id}`);
+        }
+      }
+    }
+    expect(unpriced).toEqual([]);
+  });
+
+  it('missing payments creates arrears that cost more than the relief it gives', () => {
+    const all = flat(outcomesOf('debt-service', 'miss-payments')[0].effects);
+    expect(total(all, 'treasury')).toBeLessThan(0);
+    expect(all.some((e) => e.type === 'commitment')).toBe(true);
+    expect(total(all, 'capacity')).toBeLessThanOrEqual(-5);
+  });
+
+  it('a bailout is a loan with a repayment plan, not a gift', () => {
+    const all = flat(outcomesOf('debt-service', 'ask-bailout')[0].effects);
+    expect(all.some((e) => e.type === 'commitment')).toBe(true);
+    expect(total(all, 'treasury')).toBeGreaterThan(0);
+    expect(total(all, 'treasury')).toBeLessThanOrEqual(10);
+    expect(total(all, 'capacity')).toBeLessThan(0);
+  });
+
+  it('selling assets lowers every future week of spring revenue, and the panel shows it', () => {
+    const mk = (flags) => {
+      const s = createGame(3);
+      s.turn = 10;
+      s.flags = { ...s.flags, ...flags };
+      return s;
+    };
+    const normal = weeklyTreasury(mk({}));
+    const sold = weeklyTreasury(mk({ assetsSold: true }));
+    expect(sold.net).toBeLessThan(normal.net);
+    expect(sold.items[0].label).toMatch(/assets sold/);
+    const next = (flags) => {
+      const s = mk(flags);
+      s.meters.treasury = 50;
+      s.phase = 'result';
+      s.current = { kind: 'event', eventId: 'x' };
+      s.result = { title: '', text: '', deltas: {} };
+      return proceed(s).meters.treasury - 50;
+    };
+    expect(next({ assetsSold: true })).toBe(sold.net);
+    expect(next({})).toBe(normal.net);
+  });
+
+  it('the immediate gain from selling is smaller than before, since assets go cheap', () => {
+    const all = flat(outcomesOf('debt-service', 'sell-assets')[0].effects);
+    expect(total(all, 'treasury')).toBeLessThanOrEqual(12);
+  });
+});
+
+suite('the central flood grant is not free money', () => {
+  const grant = () => EVENTS['spring-flood'].choices.find((c) => c.id === 'request-grant');
+  const atFlood = (severe, flags = {}) => {
+    const s = createGame(9);
+    s.turn = 11;
+    s.seenEvents = s.seenEvents.filter((e) => e !== 'spring-flood');
+    s.current = { kind: 'event', eventId: 'spring-flood' };
+    s.phase = 'event';
+    s.flags = { ...s.flags, floodSevere: severe, ...flags };
+    return s;
+  };
+
+  it('is only available for a severe flood, and says why when it is not', () => {
+    const mild = describe(atFlood(false)).choices.find((c) => c.id === 'request-grant');
+    expect(mild.locked).toBe(true);
+    expect(mild.lockedReason).toMatch(/severe/);
+    expect(describe(atFlood(true)).choices.find((c) => c.id === 'request-grant').locked).toBe(false);
+  });
+
+  it('part of it must be repaid, so the net gain is small', () => {
+    const effects = grant().outcomes[0].effects.flatMap((e) => (e.type === 'commitment' ? [e, ...e.effects] : [e]));
+    const net = effects.filter((e) => e.type === 'meter' && e.key === 'treasury').reduce((a, e) => a + e.delta, 0);
+    expect(net).toBeGreaterThan(0);
+    expect(net).toBeLessThanOrEqual(5);
+    expect(grant().outcomes[0].effects.some((e) => e.type === 'commitment')).toBe(true);
+  });
+
+  it('still counts against Beijing’s patience and says so when it is used up', () => {
+    const view = describe(atFlood(true, { beijingAsks: 2 }));
+    const g = view.choices.find((c) => c.id === 'request-grant');
+    expect(g.locked).toBe(true);
+    expect(g.lockedReason).toMatch(/already helped twice/);
+  });
+});
+
 suite('Beijing’s patience is limited', () => {
   const BEIJING_CHOICES = new Set(['appeal-outside', 'ask-beijing-loan', 'ask-outside', 'request-grant', 'ask-bailout']);
 

@@ -1,4 +1,4 @@
-import { m, flag, later, beijingWillHelp, askedBeijing } from '../helpers.js';
+import { m, flag, later, beijingWillHelp, askedBeijing, BEIJING_HELP_LIMIT, BEIJING_REFUSES } from '../helpers.js';
 import { CHARGES } from '../charges.js';
 
 const isWrong = (c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern';
@@ -137,10 +137,32 @@ const springFlood = {
     {
       id: 'request-grant',
       label: 'Request a central disaster grant',
-      requires: { all: [{ not: { flag: 'aidDispute' } }, { not: { charge: 'concealedLosses', status: 'open' } }, beijingWillHelp] },
-      lockedReason: 'Beijing has questions about your earlier reports, remembers how earlier support ended, or has already helped as often as it will.',
-      risk: 'Beijing will be watching how it is used.',
-      outcomes: [{ effects: [m('treasury', 12), m('capacity', -3), flag('beijingWatching'), askedBeijing], text: 'Beijing approves the grant. It also sends a team to see how it is used.' }],
+      requires: { all: [{ flag: 'floodSevere' }, { not: { flag: 'aidDispute' } }, { not: { charge: 'concealedLosses', status: 'open' } }, beijingWillHelp] },
+      lockedReason: (s) => {
+        if (!s.flags.floodSevere) return 'Beijing only gives central disaster grants for severe floods, and this one is not severe enough.';
+        if (!(Number(s.flags.beijingAsks || 0) < BEIJING_HELP_LIMIT)) return BEIJING_REFUSES;
+        return 'Beijing has questions about your earlier reports, or remembers how earlier support ended.';
+      },
+      risk: 'Part of it is a loan (Treasury −6 in 3 turns), and Beijing will be watching how it is used.',
+      outcomes: [
+        {
+          effects: [
+            m('treasury', 10),
+            m('capacity', -4),
+            flag('beijingWatching'),
+            askedBeijing,
+            {
+              type: 'commitment',
+              id: 'grantRepayment',
+              label: 'Repay the loan portion of the disaster grant (Treasury −6)',
+              dueIn: 3,
+              effects: [m('treasury', -6)],
+              text: 'The loan portion of the central grant falls due.',
+            },
+          ],
+          text: 'Beijing approves the grant, and says plainly that part of it is a loan. It also sends a team to see how it is used, and your staff spend a week answering its questions.',
+        },
+      ],
     },
     {
       id: 'flood-reserve',
@@ -309,24 +331,63 @@ const debtService = {
       id: 'ask-bailout',
       label: 'Ask Beijing to cover the shortfall',
       requires: { all: [{ not: { flag: 'aidDispute' } }, { not: { flag: 'bailedOut' } }, beijingWillHelp] },
-      lockedReason: 'Beijing has already shown how it feels about helping you.',
-      risk: 'Beijing does not forget a bailout.',
-      outcomes: [{ effects: [m('treasury', 20), flag('bailedOut'), flag('beijingWatching'), askedBeijing], text: 'Beijing covers the shortfall. A note in your file says how.' }],
+      lockedReason: (s) => (!(Number(s.flags.beijingAsks || 0) < BEIJING_HELP_LIMIT) ? BEIJING_REFUSES : 'Beijing has already shown how it feels about helping you.'),
+      risk: 'A bailout is a loan with a repayment plan (Treasury −10 in 3 turns), a review team, and a note in your file.',
+      outcomes: [
+        {
+          effects: [
+            m('treasury', 20),
+            m('capacity', -4),
+            flag('bailedOut'),
+            flag('beijingWatching'),
+            askedBeijing,
+            {
+              type: 'commitment',
+              id: 'bailoutRepayment',
+              label: 'Repay the bailout under the plan agreed with Beijing (Treasury −10)',
+              dueIn: 3,
+              effects: [m('treasury', -10)],
+              text: 'The first instalment of the bailout falls due.',
+            },
+          ],
+          text: 'Beijing covers the shortfall on condition of a repayment plan and a review of the province’s books. A note in your file says how.',
+        },
+      ],
     },
     {
       id: 'sell-assets',
       label: 'Sell provincial assets',
+      risk: 'Sold in a hurry, below value. Permanently lowers spring revenue by 3 a week.',
       outcomes: [
         {
-          effects: [m('treasury', 16), m('capacity', -3), flag('assetsSold'), later(3, [m('welfare', -3)], 'The privatised services raise their fees, and people notice.')],
-          text: 'The sale closes quickly, and the buyers are pleased.',
+          effects: [m('treasury', 12), m('capacity', -3), flag('assetsSold'), later(3, [m('welfare', -3)], 'The privatised services raise their fees, and people notice.')],
+          text: 'The sale closes quickly, at a price the buyers are pleased with. The income those assets produced is gone with them.',
         },
       ],
     },
     {
       id: 'miss-payments',
       label: 'Miss some payments and negotiate later',
-      outcomes: [{ effects: [m('treasury', 12), m('capacity', -2), flag('defaulted'), { type: 'flagAdd', key: 'beijingConcerns', delta: 1 }], text: 'The creditors are not pleased. The finance ministry is less pleased.' }],
+      risk: 'Arrears and penalties come due in 2 turns (Treasury −20). Creditors freeze the province’s credit, and Beijing hears of it.',
+      outcomes: [
+        {
+          effects: [
+            m('treasury', 12),
+            m('capacity', -6),
+            flag('defaulted'),
+            { type: 'flagAdd', key: 'beijingConcerns', delta: 1 },
+            {
+              type: 'commitment',
+              id: 'arrears',
+              label: 'Arrears, penalties and interest on the missed payments (Treasury −20)',
+              dueIn: 2,
+              effects: [m('treasury', -20)],
+              text: 'The creditors return with the arrears, the penalties and the interest. They have lawyers.',
+            },
+          ],
+          text: 'The creditors are not pleased. The finance ministry is less pleased. The missed payments do not go away; they grow.',
+        },
+      ],
     },
   ],
 };

@@ -15,6 +15,12 @@ export const WINTER_START_TURN = 2;
 // The winter ends after this turn, and running relief costs this much Treasury each week of it.
 export const WINTER_END_TURN = 8;
 export const SPRING_REVENUE = 4;
+// Selling provincial assets in a hurry permanently lowers the income that comes back in spring.
+export const ASSET_SALE_REVENUE_LOSS = 3;
+
+export function springRevenue(d) {
+  return SPRING_REVENUE - (d.flags.assetsSold ? ASSET_SALE_REVENUE_LOSS : 0);
+}
 export const RELIEF_UPKEEP = 4;
 export const RELIEF_UPKEEP_SCALED = 2;
 // Scaled-back relief saves money, and costs this much Welfare every week of the winter it lasts.
@@ -67,6 +73,8 @@ export function weeklyTreasury(d) {
       delta: -(d.flags.reliefScaled ? RELIEF_UPKEEP_SCALED : RELIEF_UPKEEP),
     });
   }
-  if (next > WINTER_END_TURN && next < d.maxTurns) items.push({ label: 'Spring revenue', delta: SPRING_REVENUE });
+  if (next > WINTER_END_TURN && next < d.maxTurns) {
+    items.push({ label: d.flags.assetsSold ? 'Spring revenue (assets sold)' : 'Spring revenue', delta: springRevenue(d) });
+  }
   return { items, net: items.reduce((sum, i) => sum + i.delta, 0) };
 }

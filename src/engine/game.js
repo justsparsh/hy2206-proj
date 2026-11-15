@@ -4,7 +4,7 @@ import { rand, pickWeighted } from './rng.js';
 import { EVENTS, CHARGES } from '../content/index.js';
 
 import {
-  WINTER_START_TURN, WINTER_END_TURN, SPRING_REVENUE, RELIEF_UPKEEP, RELIEF_UPKEEP_SCALED, RELIEF_SCALED_WELFARE_COST,
+  WINTER_START_TURN, WINTER_END_TURN, springRevenue, RELIEF_UPKEEP, RELIEF_UPKEEP_SCALED, RELIEF_SCALED_WELFARE_COST,
 } from '../content/helpers.js';
 
 export const MAX_TURNS = 14;
@@ -84,7 +84,7 @@ function startTurn(d) {
     }
   }
   if (d.turn > WINTER_END && d.turn < d.maxTurns) {
-    applyEffect(d, { type: 'meter', key: 'treasury', delta: SPRING_REVENUE });
+    applyEffect(d, { type: 'meter', key: 'treasury', delta: springRevenue(d) });
     applyEffect(d, { type: 'meter', key: 'capacity', delta: SPRING_RECOVERY });
     d.turnNotes.push('Spring revenue begins to come back in, and the administration starts to recover.');
     if (!(d.flags.uncovered > 0)) applyEffect(d, { type: 'meter', key: 'welfare', delta: 1 });
@@ -390,7 +390,7 @@ export function describe(state) {
       cost: costOf(s.eff),
       risk: d.ministerPresent ? risk : risk ? 'No briefing is available on the risks.' : undefined,
       locked,
-      lockedReason: !locked ? undefined : !s.allowed ? c.lockedReason : cannotCover(d, s.change),
+      lockedReason: !locked ? undefined : !s.allowed ? (typeof c.lockedReason === 'function' ? c.lockedReason(d) : c.lockedReason) : cannotCover(d, s.change),
     };
   });
   return {
