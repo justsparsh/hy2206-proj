@@ -66,6 +66,7 @@ export function buildDebrief(state) {
     timeline,
     ledger,
     meters: state.meters,
+    settled: state.settled ?? [],
     sources: SOURCES,
     ideas: [
       {

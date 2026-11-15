@@ -200,6 +200,35 @@ suite('pressure', () => {
   });
 });
 
+suite('borrowing is never free', () => {
+  // Total Treasury change of a choice's outcome, counting what it commits you to repay later.
+  const netTreasury = (eventId, choiceId) => {
+    const choice = EVENTS[eventId].choices.find((c) => c.id === choiceId);
+    const effects = choice.outcomes[0].effects.flatMap((e) => (e.type === 'commitment' ? [e, ...e.effects] : [e]));
+    return effects.filter((e) => e.type === 'meter' && e.key === 'treasury').reduce((sum, e) => sum + e.delta, 0);
+  };
+
+  it('bonds and loans cost more than they raise', () => {
+    expect(netTreasury('budget-shortfall', 'special-bonds')).toBeLessThan(0);
+    expect(netTreasury('budget-shortfall', 'ask-beijing-loan')).toBeLessThan(0);
+  });
+
+  it('appealing for outside support is a deferral, not a windfall over targeted relief', () => {
+    expect(netTreasury('harvest-failure', 'appeal-outside')).toBeLessThanOrEqual(netTreasury('harvest-failure', 'targeted-relief'));
+  });
+
+  it('obligations still owed when the term ends are settled against the final accounts', () => {
+    let s = play(1, (v) => available(v).find((c) => !ALL_WRONGS.has(c.id))?.id, (st) => currentEventId(st) === 'beijing-review');
+    s.commitments.push({ id: 'late', label: 'A late repayment', dueTurn: 12, effects: [{ type: 'meter', key: 'treasury', delta: -30 }] });
+    const before = s.meters.treasury;
+    s = choose(s, available(describe(s))[0].id);
+    s = proceed(s);
+    expect(s.status).toBe('ended');
+    expect(s.settled).toContain('A late repayment');
+    expect(s.meters.treasury).toBeLessThan(before);
+  });
+});
+
 suite('full-run simulation', () => {
   const runs = Array.from({ length: 600 }, (_, i) => i + 1);
   const seenEvents = new Set();

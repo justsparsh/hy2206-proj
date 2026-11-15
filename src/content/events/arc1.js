@@ -61,20 +61,29 @@ const harvestFailure = {
     {
       id: 'appeal-outside',
       label: 'Appeal to Beijing and a wealthier province for emergency support',
-      risk: 'Support will come with conditions.',
+      risk: 'Conditions apply, Beijing will be watching, and it must be repaid (Treasury −15 in 5 turns).',
       outcomes: [
         {
           effects: [
-            m('treasury', 15),
+            m('treasury', 5),
             m('welfare', 6),
             m('capacity', -4),
             flag('reliefOn'),
             flag('outsideAid'),
+            flag('beijingWatching'),
             flag('uncovered', 7),
             fact('unreachedKnown'),
             schedule('counterpart-delegation', 4),
+            {
+              type: 'commitment',
+              id: 'beijingSupportRepayment',
+              label: 'Repay the emergency support (Treasury −15)',
+              dueIn: 5,
+              effects: [m('treasury', -15)],
+              text: 'The emergency support falls due for repayment.',
+            },
           ],
-          text: 'Beijing approves an emergency allocation, and a wealthier coastal province agrees to send grain and staff. Both attach conditions you have not yet seen. County offices begin distribution, but seven villages remain beyond their reach.',
+          text: 'Beijing approves an emergency allocation, and a wealthier coastal province agrees to send grain and staff. Both attach conditions you have not yet seen, and both will expect to be repaid. County offices begin distribution, but seven villages remain beyond their reach.',
         },
       ],
     },
@@ -557,23 +566,23 @@ const shortfall = {
       label: 'Raise money through a special bond issue',
       requires: { not: { flag: 'bondsUsed' } },
       lockedReason: 'The bond market will not take another issue.',
-      risk: 'The bonds have to be repaid.',
+      risk: 'Repayment: Treasury −28 in 3 turns. Bonds sold in a crisis carry a high yield.',
       outcomes: [
         {
           effects: [
-            m('treasury', 22),
+            m('treasury', 20),
             m('capacity', -2),
             flag('bondsUsed'),
             {
               type: 'commitment',
               id: 'bondRepayment',
-              label: 'Repay the special bond issue',
+              label: 'Repay the special bond issue (Treasury −28)',
               dueIn: 3,
-              effects: [m('treasury', -12)],
-              text: 'The bond repayment comes due.',
+              effects: [m('treasury', -28)],
+              text: 'The bond repayment comes due, with interest.',
             },
           ],
-          text: 'The bonds sell quickly. The repayment date is on the calendar.',
+          text: 'The bonds sell quickly, at a high yield. The repayment date is on the calendar.',
         },
       ],
     },
@@ -582,11 +591,25 @@ const shortfall = {
       label: 'Ask Beijing for an emergency loan',
       requires: { all: [{ not: { flag: 'aidDispute' } }, { not: { flag: 'outsideAid' } }] },
       lockedReason: 'Beijing is still waiting on the last round of support.',
-      risk: 'Support will come with conditions.',
+      risk: 'Conditions apply, Beijing will be watching, and it must be repaid (Treasury −24 in 4 turns).',
       outcomes: [
         {
-          effects: [m('treasury', 18), m('capacity', -3), flag('outsideAid'), schedule('counterpart-delegation', 3)],
-          text: 'Beijing agrees, and a delegation will follow to see how the money is used.',
+          effects: [
+            m('treasury', 18),
+            m('capacity', -3),
+            flag('outsideAid'),
+            flag('beijingWatching'),
+            schedule('counterpart-delegation', 3),
+            {
+              type: 'commitment',
+              id: 'beijingLoanRepayment',
+              label: 'Repay the emergency loan (Treasury −24)',
+              dueIn: 4,
+              effects: [m('treasury', -24)],
+              text: 'The emergency loan falls due for repayment.',
+            },
+          ],
+          text: 'Beijing agrees, and a delegation will follow to see how the money is used. It will also want it back.',
         },
       ],
     },
@@ -762,41 +785,47 @@ const beijingReview = {
   window: [8, 8],
   setup: (s) => {
     const open = s.charges.filter(isWrong).length;
+    // What the province still owes counts: the inspectors read the books, not just the balance.
+    const owed = s.commitments.flatMap((c) => c.effects).filter((e) => e.type === 'meter' && e.key === 'treasury').reduce((a, e) => a + e.delta, 0);
+    const borrowed = s.flags.bondsUsed || s.flags.beijingWatching;
+    const fiscal = borrowed && s.meters.treasury + owed < 0 ? [flag('fiscalCriticism'), m('capacity', -5)] : [];
+    // Beijing looks harder at a province that drew on central support.
+    const censureAt = s.flags.beijingWatching ? 1 : 2;
+
     if (!s.ministerPresent) {
       if (open >= 1) return [flag('verdict', 'removed'), flag('removed')];
-      return [flag('verdict', 'warning'), m('capacity', -3)];
+      return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
     }
-    if (open >= 2) return [flag('verdict', 'censure'), m('capacity', -10)];
-    if (open === 1) return [flag('verdict', 'warning'), m('capacity', -3)];
-    return [flag('verdict', 'commended')];
+    if (open >= censureAt) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
+    if (open >= 1) return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
+    return [flag('verdict', 'commended'), ...fiscal];
   },
   text: (s) => {
     const intro =
       'A central inspection group from Beijing has spent a week reviewing the province’s response to the drought.';
-    switch (s.flags.verdict) {
-      case 'removed':
-        return paras(
-          intro,
-          'Lin Wei’s resignation has reached Beijing, and with it the matters he could not get you to address. The group finds those matters unresolved. Beijing’s decision comes within the week: you are relieved of your post, and a successor is named.',
-        );
-      case 'censure':
-        return paras(
-          intro,
-          'Its report criticises the province’s handling of several matters left unresolved. Your authority within the province suffers. The group gives you one chance to put one of them right in front of it.',
-        );
-      case 'warning':
-        return paras(
-          intro,
-          s.ministerPresent
+    const extras = [
+      s.flags.beijingWatching && s.flags.verdict !== 'removed'
+        ? 'Because the province drew on central support, the group examined how every yuan of it was used.'
+        : null,
+      s.flags.fiscalCriticism
+        ? 'It also criticises the province’s borrowing: more was owed than the province could comfortably repay.'
+        : null,
+    ].filter(Boolean);
+    const body = (() => {
+      switch (s.flags.verdict) {
+        case 'removed':
+          return 'Lin Wei’s resignation has reached Beijing, and with it the matters he could not get you to address. The group finds those matters unresolved. Beijing’s decision comes within the week: you are relieved of your post, and a successor is named.';
+        case 'censure':
+          return 'Its report criticises the province’s handling of several matters left unresolved. Your authority within the province suffers. The group gives you one chance to put one of them right in front of it.';
+        case 'warning':
+          return s.ministerPresent
             ? 'Its report records one unresolved matter and a note of criticism. Your standing in the provincial administration takes a small hit.'
-            : 'Lin Wei’s resignation prompted the review. The group found the matters he raised had been settled before it arrived. It notes his departure and the unease it caused in the provincial administration.',
-        );
-      default:
-        return paras(
-          intro,
-          'Its report is short and contains no criticism of how the people in your care were treated. It also contains no reward. Nothing attaches to it. The record is only a record.',
-        );
-    }
+            : 'Lin Wei’s resignation prompted the review. The group found the matters he raised had been settled before it arrived. It notes his departure and the unease it caused in the provincial administration.';
+        default:
+          return 'Its report contains no criticism of how the people in your care were treated. It also contains no reward. Nothing attaches to it for conduct. The record is only a record.';
+      }
+    })();
+    return paras(intro, body, ...extras);
   },
   choices: (s) =>
     s.flags.verdict === 'censure'

@@ -157,6 +157,9 @@ function Ended({ state, onRestart }) {
       <p className="verdict">{d.political} {d.summary}</p>
       <Meters meters={d.meters} />
       <p>{d.ethical}</p>
+      {d.settled.length > 0 && (
+        <p className="muted">Still owed when your term ended, and settled against the final accounts: {d.settled.join('; ')}.</p>
+      )}
 
       <h2>What happened</h2>
       <ol className="timeline">

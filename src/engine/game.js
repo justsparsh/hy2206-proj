@@ -16,6 +16,7 @@ export function createGame(seed = Math.floor(Math.random() * 1e9)) {
     flags: {},
     facts: [],
     commitments: [],
+    settled: [],
     charges: [],
     remonstrances: 0,
     ministerPresent: true,
@@ -366,6 +367,11 @@ export function proceed(state) {
 }
 
 function finish(d) {
+  // Anything still owed when the term ends is settled against the final accounts.
+  d.settled = d.commitments.map((c) => c.label);
+  for (const c of d.commitments) applyEffects(d, c.effects);
+  d.commitments = [];
+
   const open = d.charges.filter((c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern');
   const political = d.flags.removed
     ? 'removed'
