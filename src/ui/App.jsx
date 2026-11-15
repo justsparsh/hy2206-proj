@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createGame, describe, choose, proceed } from '../engine/game.js';
 import { buildDebrief } from '../engine/debrief.js';
 import { CHARGES, FACTS } from '../content/index.js';
+import { BEIJING_HELP_LIMIT, season, weeklyTreasury } from '../content/helpers.js';
 
 const LABELS = { treasury: 'Treasury', welfare: 'Welfare', capacity: 'State capacity' };
 
@@ -26,6 +27,33 @@ function Meters({ meters }) {
   );
 }
 
+const signed = (n) => `${n > 0 ? '+' : '−'}${Math.abs(n)}`;
+const inWeeks = (n) => (n <= 1 ? 'next week' : `in ${n} weeks`);
+
+function Commitments({ state }) {
+  const weekly = weeklyTreasury(state);
+  return (
+    <section>
+      <h3>Commitments</h3>
+      <p className="muted small">Treasury each week, before any decision you make:</p>
+      {weekly.items.length === 0 ? <p className="muted">No regular weekly change.</p> : (
+        <ul className="plain">
+          {weekly.items.map((i) => (
+            <li key={i.label}><span>{i.label}</span> <strong className={i.delta < 0 ? 'negative' : 'positive'}>{signed(i.delta)}</strong></li>
+          ))}
+          {weekly.items.length > 1 && (
+            <li className="net"><span>Net</span> <strong className={weekly.net < 0 ? 'negative' : 'positive'}>{signed(weekly.net)} a week</strong></li>
+          )}
+        </ul>
+      )}
+      <p className="muted small">Repayments and obligations coming due:</p>
+      {state.commitments.length === 0 ? <p className="muted">None.</p> : (
+        <ul>{state.commitments.map((c) => <li key={c.id}>{c.label}, due {inWeeks(c.dueTurn - state.turn)} (turn {c.dueTurn})</li>)}</ul>
+      )}
+    </section>
+  );
+}
+
 function Sidebar({ state }) {
   const raised = state.charges.filter((c) => c.raised && c.status === 'open');
   return (
@@ -37,15 +65,16 @@ function Sidebar({ state }) {
         )}
       </section>
       <section>
-        <h3>Commitments</h3>
-        {state.commitments.length === 0 ? <p className="muted">None.</p> : (
-          <ul>{state.commitments.map((c) => <li key={c.id}>{c.label} (due turn {c.dueTurn})</li>)}</ul>
+        <h3>Beijing's patience</h3>
+        {(state.flags.beijingAsks ?? 0) === 0 ? <p className="muted">You have not yet asked Beijing for help.</p> : (
+          <p>You have asked Beijing for help {state.flags.beijingAsks} time{state.flags.beijingAsks === 1 ? '' : 's'}. It will answer {BEIJING_HELP_LIMIT} in all.</p>
         )}
       </section>
+      <Commitments state={state} />
       <section>
         <h3>Matters raised and unresolved</h3>
         {raised.length === 0 ? <p className="muted">None.</p> : (
-          <ul>{raised.map((c) => <li key={c.id}>{CHARGES[c.id].label}</li>)}</ul>
+          <ul>{raised.map((c, i) => <li key={`${c.id}-${i}`}>{CHARGES[c.id].label}</li>)}</ul>
         )}
         {!state.ministerPresent && <p className="muted">Vice-Governor Lin has resigned. Briefings are no longer available.</p>}
       </section>
@@ -87,7 +116,9 @@ function Intro({ onStart }) {
       <p>
         There is no morality score. Your vice-governor, Lin Wei, will raise specific matters with you. If you keep ignoring
         him, he will resign, and Beijing may send an inspection group. Good luck is separate from good conduct, and a shortcut
-        can work for a while.
+        can work for a while. The term lasts through the winter and into the spring, and at the end Beijing decides where
+        you go next: promotion, a quiet sidelining, demotion, or dismissal. That decision rests on the province’s accounts
+        and condition, not on Mencius.
       </p>
       <p className="muted">
         This is a fictional scenario for a class on the history of China. It does not depict real officials and makes no claim about how
@@ -122,18 +153,38 @@ function Choices({ view, onPick }) {
   );
 }
 
+function ResultView({ result, onContinue }) {
+  // A notice (such as a resignation) takes over the screen and must be acknowledged first.
+  const [acknowledged, setAcknowledged] = useState(!result.notice);
+
+  if (!acknowledged) {
+    return (
+      <div className="notice" role="alertdialog" aria-labelledby="notice-title">
+        <div className="notice-box">
+          <p className="notice-kicker">News</p>
+          <h2 id="notice-title">{result.notice.title}</h2>
+          {result.notice.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+          <button className="primary" onClick={() => setAcknowledged(true)}>I understand</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="main">
+      <h2>{result.title}</h2>
+      {result.text.split('\n\n').filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}
+      <Deltas deltas={result.deltas} />
+      <button className="primary" onClick={onContinue}>Continue</button>
+    </div>
+  );
+}
+
 function Play({ state, setState }) {
   const view = describe(state);
 
   if (view.kind === 'result') {
-    return (
-      <div className="main">
-        <h2>{view.result.title}</h2>
-        {view.result.text.split('\n\n').filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}
-        <Deltas deltas={view.result.deltas} />
-        <button className="primary" onClick={() => setState(proceed(state))}>Continue</button>
-      </div>
-    );
+    return <ResultView key={state.history.length} result={view.result} onContinue={() => setState(proceed(state))} />;
   }
 
   return (
@@ -154,9 +205,11 @@ function Ended({ state, onRestart }) {
   return (
     <main className="page debrief">
       <h1>The end of the term</h1>
-      <p className="verdict">{d.political} {d.summary}</p>
+      <p className="verdict">{d.political}</p>
+      <p>{d.summary}</p>
       <Meters meters={d.meters} />
       <p>{d.ethical}</p>
+      <p className="muted">{d.measures}</p>
       {d.settled.length > 0 && (
         <p className="muted">Still owed when your term ended, and settled against the final accounts: {d.settled.join('; ')}.</p>
       )}
@@ -173,8 +226,8 @@ function Ended({ state, onRestart }) {
       </ol>
 
       <h2>What Lin raised with you</h2>
-      {d.ledger.length === 0 ? <p>Nothing. Lin never found cause to raise a matter.</p> : d.ledger.map((l) => (
-        <div className="ledger" key={l.id}>
+      {d.ledger.length === 0 ? <p>Nothing. Lin never found cause to raise a matter.</p> : d.ledger.map((l, i) => (
+        <div className="ledger" key={`${l.id}-${i}`}>
           <h3>{l.label} <span className="tag">{l.kind === 'concern' ? 'A concern, not a wrong' : 'A wrong'}</span></h3>
           <p>{l.opened}</p>
           <p><strong>{l.outcome}</strong></p>
@@ -214,7 +267,10 @@ export default function App() {
   return (
     <div className="layout">
       <header>
-        <div className="turn">Turn {state.turn} of {state.maxTurns}</div>
+        <div className="turn">
+          <div>Turn {state.turn} of {state.maxTurns}</div>
+          <div className={`season ${season(state).name.toLowerCase()}`}>{season(state).text}</div>
+        </div>
         <Meters meters={state.meters} />
       </header>
       <div className="body">

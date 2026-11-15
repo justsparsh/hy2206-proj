@@ -47,6 +47,14 @@ header {
   padding: 0.5rem 1.25rem; display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; align-items: center;
 }
 .turn { font-weight: 600; }
+.season { font-weight: normal; font-size: 0.82rem; color: var(--muted); max-width: 17rem; }
+.season.winter { color: #3a5a7a; }
+.season.spring { color: var(--good); }
+.sidebar ul.plain { list-style: none; padding-left: 0; }
+.sidebar ul.plain li { display: flex; justify-content: space-between; gap: 0.5rem; }
+.sidebar li.net { border-top: 1px solid var(--line); padding-top: 0.25rem; margin-top: 0.1rem; }
+.positive { color: var(--good); }
+.small { font-size: 0.8rem; margin: 0.4rem 0 0.2rem; }
 .meters { display: flex; gap: 1rem; flex: 1; flex-wrap: nowrap; min-width: 260px; }
 .meter { min-width: 0; flex: 1; }
 .meter-head { display: flex; justify-content: space-between; font-size: 0.85rem; }
@@ -90,6 +98,17 @@ header {
 .delta.down { background: #f2dcd8; color: #8a2d24; }
 
 .verdict { font-size: 1.15rem; font-weight: 600; }
+
+.notice {
+  position: fixed; inset: 0; z-index: 10; background: rgba(42, 38, 34, 0.88);
+  display: flex; align-items: center; justify-content: center; padding: 1.25rem;
+}
+.notice-box {
+  background: var(--paper); border-top: 6px solid var(--accent); border-radius: 4px;
+  max-width: 560px; width: 100%; padding: 1.75rem 1.75rem 1.5rem; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+.notice-box h2 { margin: 0.2rem 0 1rem; font-size: 1.6rem; color: var(--accent); }
+.notice-kicker { margin: 0; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; color: var(--muted); }
 .timeline { padding-left: 1.2rem; }
 .timeline li { margin-bottom: 0.7rem; }
 .note { margin-top: 0.3rem; font-size: 0.9rem; background: #efe6d2; padding: 0.4rem 0.7rem; border-radius: 4px; }

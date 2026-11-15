@@ -1,19 +1,28 @@
 import { CHARGES, SOURCES } from '../content/index.js';
 
-const POLITICAL = {
-  office: 'You remained in office.',
-  failing: 'You remained in office, but the province was in a bad state by the end.',
-  removed: 'Beijing removed you from office.',
+const CAREER = {
+  promoted:
+    'Beijing is pleased with how the province came through the year. You are moved to a larger province, with a bigger budget and a harder set of problems.',
+  retained: 'Beijing leaves you in post. The year goes into your file without comment.',
+  sidelined:
+    'Beijing moves you to a largely ceremonial post on a provincial standing committee, with no role in running anything. On paper it is a lateral move. Everyone understands what it is.',
+  demoted:
+    'Beijing considers the province’s finances and condition a failure. You are demoted in rank and posted as a deputy to a remote western prefecture, where nobody expects you to come back.',
+  dismissed: 'Beijing removes you from office and refers your conduct for review.',
+  insolvent:
+    'A crisis arrived and you had no response left to give it: no money, no standing, no move you could make. Beijing relieved you of your post and referred your conduct for review.',
+  collapsed:
+    'The province broke down: people starving, protests turned to riots, and a government that could no longer keep order. Beijing removed you from office and referred your conduct for review.',
 };
 
-const MATRIX = {
-  'office-clear': 'You governed through hard luck and kept your obligations.',
-  'failing-clear': 'The winter beat you, though you did what was owed.',
-  'removed-clear': 'You were removed, though no matter was left unresolved.',
-  'office-compromised': 'You survived, but the record shows wrongs you did not repair.',
-  'failing-compromised': 'The province suffered, and wrongs went unrepaired.',
-  'removed-compromised': 'Both the government and the conduct failed.',
+const ETHICAL = {
+  clear: 'By Mencius’s standard, no wrong was left unrepaired.',
+  compromised: 'By Mencius’s standard, wrongs were left unrepaired.',
 };
+
+// Beijing's accounting and Mencius's are different measures, and the end of the game says so.
+const MEASURES =
+  'Beijing judged you on the province’s accounts and condition. Mencius would have judged you on how you treated the people in your care. Those two verdicts do not always agree, and the game never promised they would.';
 
 const STATUS_LABEL = {
   direct: 'Direct textual support',
@@ -28,7 +37,15 @@ export function buildDebrief(state) {
   const ledger = state.charges.map((c) => {
     const def = CHARGES[c.id];
     let outcome;
-    if (c.status === 'corrected') outcome = 'Corrected.';
+    if (def.kind === 'concern') {
+      if (c.status === 'corrected') outcome = 'You heeded it, scaled relief back, and paid for it in welfare.';
+      else if (state.flags.warningCalledIn) outcome = 'You kept spending, and the Treasury did run dry. Beijing’s finance bureau noted it.';
+      else outcome = 'You kept spending, and the money held. Lin’s warning did not come true.';
+    } else     if (def.kind === 'concern' && c.status !== 'open') {
+      if (c.status === 'corrected') outcome = 'You heeded it, scaled relief back, and paid for it in welfare.';
+      else if (state.flags.warningCalledIn) outcome = 'You kept spending, and the Treasury did run dry. Beijing’s finance bureau noted it.';
+      else outcome = 'You kept spending, and the money held. Lin’s warning did not come true.';
+    } else if (c.status === 'corrected') outcome = 'Corrected.';
     else if (c.status === 'defended') {
       outcome = c.outcomeDependentDefence
         ? 'Defended. The defence rests on something you could not have known when you decided, so it does not vindicate the original choice.'
@@ -57,12 +74,14 @@ export function buildDebrief(state) {
 
   return {
     seed: state.seed,
-    political: POLITICAL[ending.political],
+    political: state.flags.collapsed ? CAREER.collapsed : state.flags.insolvent ? CAREER.insolvent : CAREER[ending.career],
+    career: ending.career,
+    measures: MEASURES,
     ethical:
       ending.ethical === 'clear'
         ? 'No wrong was left unrepaired.'
         : `${ledger.filter((l) => l.status === 'open' && l.kind !== 'concern').length} wrong(s) left unrepaired.`,
-    summary: MATRIX[`${ending.political}-${ending.ethical}`],
+    summary: ETHICAL[ending.ethical],
     timeline,
     ledger,
     meters: state.meters,

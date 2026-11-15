@@ -1,4 +1,6 @@
-import { m, flag } from './helpers.js';
+import {
+  m, flag, WINTER_END_TURN, RELIEF_UPKEEP, RELIEF_UPKEEP_SCALED, projectedShortfall, owedRepayments,
+} from './helpers.js';
 
 // Each charge is a specific wrong the player can knowingly commit.
 // `source.status`: direct (the passage addresses it), inference (an application of the passage),
@@ -137,42 +139,38 @@ export const CHARGES = {
       'You knew which villages had not been reached, and you could have afforded to help some of them. Weeks passed.',
   },
 
-  // Not a wrong: a disagreement. Sometimes the minister is right to worry and sometimes the ruler is right to hold firm.
+  // Not a wrong: advice. Lin shows the numbers, and the ruler can heed him or bet that he is wrong.
   fiscalConcern: {
     id: 'fiscalConcern',
     kind: 'concern',
-    label: 'Lin’s warning about the Treasury',
-    trigger: {
-      all: [
-        { flag: 'reliefOn' },
-        { turn: true, op: '>=', value: 3 },
-        { meter: 'treasury', op: '<', value: 14 },
-        { not: { flag: 'reliefScaled' } },
-      ],
-    },
+    label: 'Lin’s warning that the money would run out',
+    trigger: (d) =>
+      d.flags.reliefOn && !d.flags.reliefScaled && d.turn >= 3 && d.turn <= WINTER_END_TURN && projectedShortfall(d) > 0,
     source: {
       passage: 'No verified passage',
       status: 'adaptation',
       note:
-        'Game design. Mencius does not discuss provincial budgets. This is an ordinary disagreement between minister and ruler, included so that remonstrance is not always a verdict: sometimes the minister is wrong, and the ruler’s task is to tell the difference.',
+        'Game design. Mencius does not discuss provincial budgets. This is ordinary advice from a minister, included so that remonstrance is not always a verdict: the ruler can heed the warning or bet that it is wrong, and either choice has a price.',
     },
-    linLine:
-      'The Treasury is nearly empty, Governor, and relief is costing us every week. I think we should scale it back before we are forced to. I may be wrong, and the cold may be mild, but I would rather say it now than after.',
-    correctLabel: 'Scale relief back to essentials',
-    defendLabel: 'Explain why you are keeping relief at its current level',
+    linLine: (d) => {
+      const owed = owedRepayments(d);
+      const weeks = Math.max(0, WINTER_END_TURN - d.turn);
+      const upkeep = d.flags.reliefScaled ? RELIEF_UPKEEP_SCALED : RELIEF_UPKEEP;
+      return `I have run the numbers, Governor. The Treasury stands at ${d.meters.treasury}${owed ? `, and we owe ${owed} in repayments` : ''}. Relief costs ${upkeep} a week, and there are ${weeks} weeks of winter left. If nothing changes we will be about ${projectedShortfall(d)} short before it ends. I may be wrong about the weather, but that is where the money goes.`;
+    },
+    correctLabel: 'Scale relief back to essentials now',
+    defendLabel: 'Keep spending as it is, and find the money later',
     correct: {
       effects: [m('treasury', 8), m('welfare', -6), flag('reliefScaled')],
       text: 'You scale relief back to essentials. The Treasury breathes, and some families notice.',
     },
     defence: {
-      when: { any: [{ meter: 'welfare', op: '<', value: 62 }, { flag: 'uncovered', op: '>', value: 0 }] },
+      effects: [flag('budgetWarningIgnored')],
       outcomeDependent: false,
       acceptText:
-        'You tell Lin the people are not out of danger yet, and that the cold has not even arrived. He considers it. “Then we find the money another way. But I will say it again if it gets worse.”',
-      rejectText:
-        'You tell Lin relief must stay as it is. He looks at the welfare figures. “They are better than I feared, Governor. I am not sure that is a reason to keep spending at this rate.”',
+        'You tell Lin the people come first and the money will be found. He nods slowly. “Then it is your decision, Governor. I will hold us to the numbers.”',
     },
-    opened: 'Lin warned you that the Treasury was nearly empty and that relief might need to be scaled back.',
+    opened: 'Lin showed you the numbers and warned that the Treasury would run out before winter ended.',
   },
 
   squeezedPeople: {
@@ -227,13 +225,58 @@ export const CHARGES = {
         '5B9: a minister who finds the ruler at fault should remonstrate, and if the ruler repeatedly does not listen, should leave (or, for ministers closest to the ruler, depose him). 1B6: the king “looked left and right and spoke of other things.” Applying this to a modern provincial leader is an inference.',
     },
     linLine:
-      'I am told I am not to raise this. I can be obedient or I can be honest. I do not think I can be both for long.',
+      'You told me the matter was closed, Governor, and I have kept to that. But I cannot keep to it and do my job. I can be obedient or I can be honest, and I do not think I can be both for long.',
     correctLabel: 'Tell Lin you were wrong to dismiss him, and restore his briefings',
+    suppressLabel: 'Tell him again that the matter is closed',
     correct: {
       effects: [m('capacity', -5), { type: 'remonstrances', value: 1 }],
       text: 'You tell Lin you were wrong to shut him out. He says nothing for a moment, then opens his folder.',
     },
     defence: null,
     opened: 'You shut out an official whose job was to tell you what you did not want to hear.',
+  },
+
+  concealedLosses: {
+    id: 'concealedLosses',
+    label: 'Understating the winter’s deaths to Beijing',
+    requiresFact: 'casualtiesKnown',
+    source: {
+      passage: 'No verified passage',
+      status: 'adaptation',
+      note:
+        'Game design. Mencius 5B9 presupposes that the ruler hears the truth from his ministers. Nothing verified here addresses a subordinate reporting to a superior, though the same logic of honest reporting is at stake: a government that hides its failures cannot correct them.',
+    },
+    linLine:
+      'The figure we sent Beijing is not the figure I gave you, Governor. Somebody will check. When they do, it will not be only the number that is questioned.',
+    correctLabel: 'Send Beijing a corrected report',
+    correct: {
+      effects: [m('capacity', -4), flag('beijingWatching')],
+      text: 'You send Beijing the true figure with an explanation. It arrives with a note that corrections of this kind are rarely welcome. Lin does not say “thank you”; he nods once.',
+    },
+    defence: null,
+    opened:
+      'You were given the true count of winter deaths, and you reported fewer to Beijing.',
+  },
+
+  crushedUnrest: {
+    id: 'crushedUnrest',
+    label: 'Using force on people the winter had left with nothing',
+    requiresFact: 'unrestCause',
+    source: {
+      passage: 'Mencius 1A7',
+      status: 'inference',
+      note:
+        '“When they thereupon sink into crime, to go and punish the people is to trap them.” (Van Norden 2008, as quoted in the Stanford Encyclopedia of Philosophy.) The passage concerns crime driven by want; applying it to protest is an inference.',
+    },
+    linLine:
+      'You were told who was in those crowds, Governor. They were not an enemy. They were people the winter had broken, and we sent the police. Whatever we call it, it will not feed them.',
+    correctLabel: 'Release those detained and open talks',
+    correct: {
+      effects: [m('treasury', -8), m('capacity', -3), m('welfare', 5)],
+      text: 'You order the detainees released and open talks. It is expensive, and the representatives are slow to trust you.',
+    },
+    defence: null,
+    opened:
+      'You were told the crowds were mostly people from the places the winter had hit worst, with no record of trouble, and you sent security forces to clear them.',
   },
 };

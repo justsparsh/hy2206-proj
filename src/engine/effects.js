@@ -36,6 +36,9 @@ export function applyEffect(d, e) {
     case 'flag':
       d.flags[e.key] = e.value === undefined ? true : e.value;
       break;
+    case 'flagAdd':
+      d.flags[e.key] = Math.max(0, Number(d.flags[e.key] || 0) + e.delta);
+      break;
     case 'fact':
       if (!d.facts.includes(e.key)) d.facts.push(e.key);
       break;

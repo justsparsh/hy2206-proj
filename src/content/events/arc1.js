@@ -1,4 +1,4 @@
-import { m, flag, fact, later, schedule } from '../helpers.js';
+import { m, flag, fact, later, schedule, beijingWillHelp, BEIJING_REFUSES, askedBeijing } from '../helpers.js';
 import { CHARGES } from '../charges.js';
 
 const isWrong = (c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern';
@@ -71,6 +71,7 @@ const harvestFailure = {
             flag('reliefOn'),
             flag('outsideAid'),
             flag('beijingWatching'),
+            askedBeijing,
             flag('uncovered', 7),
             fact('unreachedKnown'),
             schedule('counterpart-delegation', 4),
@@ -124,12 +125,12 @@ const depotThefts = {
       outcomes: [
         {
           when: { flag: 'ringPresent' },
-          effects: [m('treasury', -3), m('welfare', -3), flag('orderRestored'), flag('ringCaught')],
+          effects: [m('welfare', -3), flag('orderRestored'), flag('ringCaught')],
           text: 'Order returns within days. Among those arrested, police find the organisers of a small ring that had been reselling stolen grain.',
         },
         {
           when: { not: { flag: 'ringPresent' } },
-          effects: [m('treasury', -3), m('welfare', -3), flag('orderRestored')],
+          effects: [m('welfare', -3), flag('orderRestored')],
           text: 'Order returns within days. Nobody says why the raids started.',
         },
       ],
@@ -312,18 +313,19 @@ const contract = {
     {
       id: 'award-kin',
       label: 'Award the contract to Tianbao Logistics',
-      risk: 'A fast start, or a late delivery.',
+      risk: 'Trucks are loaded and drivers are on standby, so it is fast and takes work off your offices. The firm has been late before.',
       charges: [{ id: 'favouredKin' }],
       outcomes: [
         {
-          chance: 0.5,
-          effects: [m('treasury', -8), m('welfare', 4), flag('kinContract')],
-          text: 'Trucks are moving within two days. Han Jie sends flowers to your office.',
+          chance: 0.65,
+          effects: [m('treasury', -6), m('welfare', 6), m('capacity', 2), flag('kinContract')],
+          text: 'Trucks are moving within two days, with Tianbao’s own dispatchers running the routes. Your offices are relieved of the work. Han Jie sends flowers to your office.',
         },
         {
           effects: [
-            m('treasury', -8),
-            m('welfare', 4),
+            m('treasury', -6),
+            m('welfare', 6),
+            m('capacity', 2),
             flag('kinContract'),
             later(2, [m('welfare', -6)], 'Tianbao’s trucks arrive late. A local newspaper has the story.'),
           ],
@@ -511,7 +513,7 @@ const petition = {
       label: 'Have security move them on',
       outcomes: [
         {
-          effects: [m('welfare', -3), m('capacity', -1)],
+          effects: [m('welfare', -3), m('capacity', -1), flag('petitionersMovedOn')],
           text: 'They are bused home by evening. The petition is not read, and it will not be forgotten.',
         },
       ],
@@ -555,6 +557,7 @@ const shortfall = {
           effects: [
             m('treasury', 10),
             m('capacity', -4),
+            flag('clinicsDiverted'),
             later(3, [m('welfare', -5)], 'Clinics that were short of staff in autumn are closed by winter, and the illnesses they would have caught are not being caught.'),
           ],
           text: 'The transfer is approved without much argument. Nobody sees the cost yet.',
@@ -589,8 +592,8 @@ const shortfall = {
     {
       id: 'ask-beijing-loan',
       label: 'Ask Beijing for an emergency loan',
-      requires: { all: [{ not: { flag: 'aidDispute' } }, { not: { flag: 'outsideAid' } }] },
-      lockedReason: 'Beijing is still waiting on the last round of support.',
+      requires: { all: [{ not: { flag: 'aidDispute' } }, { not: { flag: 'outsideAid' } }, beijingWillHelp] },
+      lockedReason: 'Beijing is still waiting on the last round of support, or has already helped as often as it will.',
       risk: 'Conditions apply, Beijing will be watching, and it must be repaid (Treasury −24 in 4 turns).',
       outcomes: [
         {
@@ -599,6 +602,7 @@ const shortfall = {
             m('capacity', -3),
             flag('outsideAid'),
             flag('beijingWatching'),
+            askedBeijing,
             schedule('counterpart-delegation', 3),
             {
               type: 'commitment',
@@ -714,6 +718,15 @@ const coldWave = {
     if (s.flags.blackMarket) out.push(m('welfare', -2));
     if (s.flags.rationsCut) out.push(m('welfare', -3));
     if (s.flags.chainAudited) out.push(m('welfare', 2));
+
+    // The winter's human toll, which the spring will ask you to account for.
+    let loss = severe ? 3 : 1;
+    if (s.flags.uncovered > 0) loss += 3;
+    if (s.flags.rationsCut) loss += 1;
+    if (s.flags.skimmingContinues) loss += 1;
+    if (s.flags.blackMarket) loss += 1;
+    if (s.flags.chainAudited) loss -= 1;
+    out.push(flag('winterLoss', Math.max(0, loss)));
     return out;
   },
   text: (s) =>
@@ -732,7 +745,7 @@ const coldWave = {
       label: 'Fund an emergency aid package',
       outcomes: [
         {
-          effects: (s) => [m('treasury', -20), m('welfare', s.flags.severe ? 12 : 9)],
+          effects: (s) => [m('treasury', -20), m('welfare', s.flags.severe ? 12 : 9), { type: 'flagAdd', key: 'winterLoss', delta: -2 }],
           text: 'Aid goes out within the week. It is expensive, and it is enough.',
         },
       ],
@@ -748,7 +761,7 @@ const coldWave = {
           : null,
       outcomes: [
         {
-          effects: [m('treasury', -5), m('welfare', 10), flag('reservesSpent')],
+          effects: [m('treasury', -5), m('welfare', 10), flag('reservesSpent'), { type: 'flagAdd', key: 'winterLoss', delta: -2 }],
           text: 'The reserve is opened. For the first time in months, the province has grain in hand.',
         },
       ],
@@ -756,12 +769,13 @@ const coldWave = {
     {
       id: 'ask-outside',
       label: 'Request emergency support from Beijing and your counterpart province',
-      requires: { not: { flag: 'aidDispute' } },
-      lockedReason: 'Beijing and your counterpart province remember how the earlier support ended.',
+      requires: { all: [{ not: { flag: 'aidDispute' } }, beijingWillHelp] },
+      lockedReason: 'Beijing and your counterpart province remember how the earlier support ended, or have already helped as often as they will.',
+      risk: 'Beijing will be watching how it is used.',
       outcomes: [
         {
-          effects: [m('treasury', -3), m('welfare', 6), m('capacity', -2)],
-          text: 'Beijing approves a smaller package than before, but it arrives.',
+          effects: [m('treasury', -3), m('welfare', 6), m('capacity', -2), { type: 'flagAdd', key: 'winterLoss', delta: -1 }, askedBeijing, flag('beijingWatching')],
+          text: 'Beijing approves a smaller package than before, but it arrives. It also notes how often you have had to ask.',
         },
       ],
     },
@@ -782,27 +796,32 @@ const beijingReview = {
   id: 'beijing-review',
   title: 'The Inspection',
   slot: 'anchor',
-  window: [8, 8],
-  setup: (s) => {
-    const open = s.charges.filter(isWrong).length;
+  window: [14, 14],
+  setup: (s, r) => {
+    const wrongs = s.charges.filter(isWrong).length;
+    // Matters Beijing has collected along the way (obstructed audits, defaults, crackdowns) count too.
+    const matters = wrongs + Number(s.flags.beijingConcerns || 0);
     // What the province still owes counts: the inspectors read the books, not just the balance.
     const owed = s.commitments.flatMap((c) => c.effects).filter((e) => e.type === 'meter' && e.key === 'treasury').reduce((a, e) => a + e.delta, 0);
-    const borrowed = s.flags.bondsUsed || s.flags.beijingWatching;
+    const borrowed = s.flags.bondsUsed || s.flags.beijingWatching || s.flags.bailedOut;
     const fiscal = borrowed && s.meters.treasury + owed < 0 ? [flag('fiscalCriticism'), m('capacity', -5)] : [];
     // Beijing looks harder at a province that drew on central support.
     const censureAt = s.flags.beijingWatching ? 1 : 2;
+    const exposed = s.charges.some((c) => c.id === 'concealedLosses' && c.status === 'open') && r() < 0.4;
 
+    if (exposed) return [flag('verdict', 'removed'), flag('removed'), flag('exposed')];
     if (!s.ministerPresent) {
-      if (open >= 1) return [flag('verdict', 'removed'), flag('removed')];
+      if (wrongs >= 1) return [flag('verdict', 'removed'), flag('removed')];
+      if (matters >= 1) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
       return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
     }
-    if (open >= censureAt) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
-    if (open >= 1) return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
+    if (matters >= censureAt) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
+    if (matters >= 1) return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
     return [flag('verdict', 'commended'), ...fiscal];
   },
   text: (s) => {
     const intro =
-      'A central inspection group from Beijing has spent a week reviewing the province’s response to the drought.';
+      'A central inspection group from Beijing has spent a week reviewing the province’s response to the drought, the winter, and the spring that followed.';
     const extras = [
       s.flags.beijingWatching && s.flags.verdict !== 'removed'
         ? 'Because the province drew on central support, the group examined how every yuan of it was used.'
@@ -814,9 +833,11 @@ const beijingReview = {
     const body = (() => {
       switch (s.flags.verdict) {
         case 'removed':
-          return 'Lin Wei’s resignation has reached Beijing, and with it the matters he could not get you to address. The group finds those matters unresolved. Beijing’s decision comes within the week: you are relieved of your post, and a successor is named.';
+          return s.flags.exposed
+            ? 'The inspectors compared your winter report with the county registers. The figures did not match. Beijing’s decision comes within the week: you are relieved of your post, and your conduct is referred for review.'
+            : 'Lin Wei’s resignation has reached Beijing, and with it the matters he could not get you to address. The group finds those matters unresolved. Beijing’s decision comes within the week: you are relieved of your post, and a successor is named.';
         case 'censure':
-          return 'Its report criticises the province’s handling of several matters left unresolved. Your authority within the province suffers. The group gives you one chance to put one of them right in front of it.';
+          return 'Its report criticises the province’s handling of several matters left unresolved. Your authority within the province suffers.' + (s.charges.some(isWrong) ? ' The group gives you one chance to put one of them right in front of it.' : '');
         case 'warning':
           return s.ministerPresent
             ? 'Its report records one unresolved matter and a note of criticism. Your standing in the provincial administration takes a small hit.'
@@ -828,7 +849,7 @@ const beijingReview = {
     return paras(intro, body, ...extras);
   },
   choices: (s) =>
-    s.flags.verdict === 'censure'
+    s.flags.verdict === 'censure' && s.charges.some(isWrong)
       ? [
           {
             id: 'put-right',
