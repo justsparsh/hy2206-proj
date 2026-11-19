@@ -4,7 +4,7 @@ import { rand, pickWeighted } from './rng.js';
 import { EVENTS, CHARGES } from '../content/index.js';
 
 import {
-  WINTER_START_TURN, WINTER_END_TURN, springRevenue, RELIEF_UPKEEP, RELIEF_UPKEEP_SCALED, RELIEF_SCALED_WELFARE_COST,
+  WINTER_START_TURN, WINTER_END_TURN, springRevenue, RELIEF_UPKEEP,
 } from '../content/helpers.js';
 
 export const MAX_TURNS = 14;
@@ -74,14 +74,8 @@ function startTurn(d) {
     d.turnNotes.push('Winter closes in. Every week without improvement costs the province.');
   }
   if (winter && d.flags.reliefOn) {
-    const upkeep = d.flags.reliefScaled ? RELIEF_UPKEEP_SCALED : RELIEF_UPKEEP;
-    applyEffect(d, { type: 'meter', key: 'treasury', delta: -upkeep });
+    applyEffect(d, { type: 'meter', key: 'treasury', delta: -RELIEF_UPKEEP });
     d.turnNotes.push('Relief operations cost money every week: trucks, staff, storage.');
-    if (d.flags.reliefScaled) {
-      // The saving is real, and so is what it takes away.
-      applyEffect(d, { type: 'meter', key: 'welfare', delta: -RELIEF_SCALED_WELFARE_COST });
-      d.turnNotes.push('Smaller rations mean smaller meals. Families in the covered villages feel it every week.');
-    }
   }
   if (d.turn > WINTER_END && d.turn < d.maxTurns) {
     applyEffect(d, { type: 'meter', key: 'treasury', delta: springRevenue(d) });
@@ -96,16 +90,6 @@ function startTurn(d) {
       { type: 'meter', key: 'capacity', delta: -2 },
     ]);
     d.turnNotes.push('You are borrowing to keep services running, and the cuts are showing.');
-  }
-
-  // If you were warned the money would run out, kept spending, and it did, the finance bureau reports it.
-  if (d.flags.budgetWarningIgnored && !d.flags.warningCalledIn && d.meters.treasury < 0) {
-    d.flags.warningCalledIn = true;
-    applyEffects(d, [
-      { type: 'meter', key: 'capacity', delta: -3 },
-      { type: 'flagAdd', key: 'beijingConcerns', delta: 1 },
-    ]);
-    d.turnNotes.push('The Treasury has run dry, as Lin warned it would. The provincial finance bureau reports the shortfall to Beijing. Lin does not say “I told you so”; the figures do.');
   }
 
   // Hunger deepens in villages the relief has not reached.
@@ -351,9 +335,8 @@ export function describe(state) {
   if (d.current.kind === 'remonstrance') {
     const charge = d.charges.find((c) => c.id === d.current.chargeId);
     const def = CHARGES[charge.id];
-    const concern = def.kind === 'concern';
     const escalation =
-      !concern && d.remonstrances >= 2
+      d.remonstrances >= 2
         ? '\n\nHe adds, quietly: “If this continues, Governor, I will not be able to stay.”'
         : '';
     const line = typeof def.linLine === 'function' ? def.linLine(d) : def.linLine;
@@ -368,12 +351,11 @@ export function describe(state) {
         lockedReason: cannotRepair ? cannotCover(d, repairChange) : undefined,
       },
       { id: 'defend', label: def.defendLabel ?? 'Defend the decision', cost: [] },
+      { id: 'suppress', label: def.suppressLabel ?? 'Tell him the matter is closed', cost: [] },
     ];
-    // Advice can be declined. Only a matter of wrongdoing can be shut down, and shutting it down is itself a wrong.
-    if (!concern) options.push({ id: 'suppress', label: def.suppressLabel ?? 'Tell him the matter is closed', cost: [] });
     return {
       kind: 'remonstrance',
-      title: concern ? 'Vice-Governor Lin raises a concern' : 'Vice-Governor Lin raises a matter',
+      title: 'Vice-Governor Lin raises a matter',
       paragraphs: [`“${line}”${escalation}`],
       choices: options,
       notes: d.turnNotes,
@@ -488,7 +470,6 @@ function respond(d, choiceId) {
       text = def.defence?.rejectText ?? 'Lin hears you out. “I hear the argument, Governor, and I do not accept it.”';
     }
   } else if (choiceId === 'suppress') {
-    if (CHARGES[charge.id].kind === 'concern') throw new Error('Advice cannot be shut down');
     charge.suppressed = true;
     if (charge.id === 'silencedRemonstrance') {
       // Told twice to be quiet, he has nothing left to say.
@@ -558,7 +539,7 @@ function finish(d) {
   for (const c of d.commitments) applyEffects(d, c.effects);
   d.commitments = [];
 
-  const open = d.charges.filter((c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern');
+  const open = d.charges.filter((c) => c.status === 'open');
   // A province that ended the term in collapse is a collapse, even if the last turn was the one that broke it.
   if (d.meters.welfare <= COLLAPSE_AT && !d.flags.removed) {
     d.flags.removed = true;

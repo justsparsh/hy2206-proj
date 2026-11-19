@@ -1,7 +1,6 @@
 import { m, flag, later, beijingWillHelp, askedBeijing, BEIJING_HELP_LIMIT, BEIJING_REFUSES } from '../helpers.js';
-import { CHARGES } from '../charges.js';
 
-const isWrong = (c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern';
+const isWrong = (c) => c.status === 'open';
 
 const paras = (...p) => p.join('\n\n');
 const deaths = (s) => (s.flags.winterLoss ?? 0) * 6;

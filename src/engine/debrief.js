@@ -15,47 +15,134 @@ const CAREER = {
     'The province broke down: people starving, protests turned to riots, and a government that could no longer keep order. Beijing removed you from office and referred your conduct for review.',
 };
 
+const CAREER_META = {
+  promoted: { label: 'Promoted', tone: 'good' },
+  retained: { label: 'Retained', tone: 'neutral' },
+  sidelined: { label: 'Sidelined', tone: 'warn' },
+  demoted: { label: 'Demoted', tone: 'bad' },
+  dismissed: { label: 'Dismissed', tone: 'bad' },
+};
+
 const ETHICAL = {
   clear: 'By Mencius’s standard, no wrong was left unrepaired.',
   compromised: 'By Mencius’s standard, wrongs were left unrepaired.',
+};
+
+// Short, player-facing Mencian reflection for each matter, kept separate from scholarly provenance notes.
+const MENCIUS_LINE = {
+  entrapment: 'Mencius 1A7 — punishing people driven into wrongdoing by want is to trap them.',
+  failedTrust: 'Mencius 1B6 — a ruler entrusted with a people who lets them go hungry breaks that trust.',
+  notExtended: 'Mencius 1A7 — sparing the one creature before your eyes means little if compassion stops there.',
+  favouredKin: 'Mencius 5A3 — even sage-king Shun refused to let an unreliable brother administer the people.',
+  leftWaiting: 'Mencius 1A7 — securing livelihood is not charity; it is the first duty of office.',
+  squeezedPeople: 'Mencius 1A7 & 3A3 — balancing accounts by taking from those with nothing left undermines the basis of rule.',
+  heavyTaxation: 'Mencius 3A3 — without a constant livelihood, ordinary people cannot keep a constant heart.',
+  lookedAway: 'Mencius 1B6 — a judge who cannot control his own officers should not remain in charge.',
+  silencedRemonstrance: 'Mencius 5B9 & 1B6 — turning away from honest counsel strips rule of its safeguard.',
+  concealedLosses: 'Honest reporting — a government that hides the toll from above cannot answer for it below.',
+  stagedRecovery: 'Mencius 1A7 & 1B6 — tending to what sits before the visitor’s eye while neglecting the unseen counties.',
+  crushedUnrest: 'Mencius 1A7 — sending force against people broken by want traps them twice.',
 };
 
 // Beijing's accounting and Mencius's are different measures, and the end of the game says so.
 const MEASURES =
   'Beijing judged you on the province’s accounts and condition. Mencius would have judged you on how you treated the people in your care. Those two verdicts do not always agree, and the game never promised they would.';
 
-const STATUS_LABEL = {
-  direct: 'Direct textual support',
-  inference: 'Reasonable inference from the text',
-  adaptation: 'Game design, not a claim about the text',
-};
-
 const RESPONSE_LABEL = { correct: 'You corrected it', defend: 'You defended it', suppress: 'You shut him down' };
+
+function makeHeadline(state) {
+  const { career, ethical } = state.ending;
+  if (state.flags.collapsed) return 'The Province Broke Down';
+  if (state.flags.insolvent) return 'Left With No Move';
+  if (state.flags.exposed) return 'Exposed and Dismissed';
+  if (career === 'dismissed') return 'Relieved of Your Post';
+  const careerWord = {
+    promoted: 'Promoted',
+    retained: 'Kept in Post',
+    sidelined: 'Sidelined',
+    demoted: 'Demoted',
+  }[career];
+  return ethical === 'clear' ? `${careerWord} — with a Clear Record` : `${careerWord} — and Compromised`;
+}
+
+function makeMenciusVerdict(state, openWrongs, repairedWrongs) {
+  const { ethical } = state.ending;
+  if (ethical === 'clear') {
+    if (!state.ministerPresent) {
+      return 'No wrong remained unrepaired when the term ended, though your refusal to listen drove Vice-Governor Lin from office along the way.';
+    }
+    if (repairedWrongs > 0) {
+      return 'You answered every wrong Vice-Governor Lin placed before you. Putting them right cost the province dearly, and by Mencius’s standard nothing was left unrepaired.';
+    }
+    return 'You governed through a hard winter and spring without leaving a knowing wrong on the record. By Mencius’s standard, you kept the trust placed in you.';
+  }
+  const noun = openWrongs === 1 ? 'One wrong stood' : `${openWrongs} wrongs stood`;
+  if (!state.ministerPresent) {
+    return `${noun} unrepaired when the term ended, and your refusal to heed them drove Vice-Governor Lin to resign. In Mencius’s view, a ruler who neither cares for the people nor hears his ministers has lost the standing of office.`;
+  }
+  return `${noun} unrepaired on your record. Vice-Governor Lin stayed at his desk, but his objections remained in the file. By Mencius’s standard, keeping order on paper does not undo a wrong done to the people in your care.`;
+}
+
+function makeLinEpilogue(state, wrongs) {
+  if (!state.ministerPresent) {
+    return 'Vice-Governor Lin Wei resigned after you repeatedly refused his counsel.';
+  }
+  if (wrongs.length === 0) {
+    return 'Vice-Governor Lin Wei remained at his post through the year and never had cause to bring a charge.';
+  }
+  const repaired = wrongs.filter((w) => w.status === 'corrected').length;
+  const open = wrongs.filter((w) => w.status === 'open').length;
+  if (open === 0) {
+    return `Vice-Governor Lin Wei remained at his post. You answered ${repaired === 1 ? 'the matter' : `all ${repaired} matters`} he brought before you.`;
+  }
+  return `Vice-Governor Lin Wei remained at his post, though ${open === 1 ? 'one objection remains' : `${open} objections remain`} unanswered in the provincial file.`;
+}
+
+function makeReplayHint(state, diverged) {
+  const { career, ethical } = state.ending;
+  const careerSuccess = career === 'promoted' || career === 'retained';
+  if (diverged && careerSuccess) {
+    return 'You satisfied Beijing by cutting corners. Try the same winter again without leaving a wrong unrepaired — and see what it costs your career.';
+  }
+  if (diverged && !careerSuccess) {
+    return 'You kept a clean record and paid for it in Beijing. Try again with a colder eye on the books — or see if you can satisfy both ledgers at once.';
+  }
+  if (career === 'promoted' && ethical === 'clear') {
+    return 'You threaded the needle: Beijing promoted you and Mencius cleared you. Try a new seed to see whether a harsher winter lets you do it twice.';
+  }
+  if (career === 'dismissed') {
+    return 'Try another term — watch the mountain villages early, keep the Treasury from running dry, and think twice before shutting Lin Wei out.';
+  }
+  return 'Every winter unfolds differently. Try a new seed, or replay this one to see how far Beijing’s scorecard and Mencius’s standard can pull apart.';
+}
 
 export function buildDebrief(state) {
   const { ending } = state;
   const ledger = state.charges.map((c) => {
     const def = CHARGES[c.id];
     let outcome;
-    if (def.kind === 'concern') {
-      if (c.status === 'corrected') outcome = 'You heeded it, scaled relief back, and paid for it in welfare.';
-      else if (state.flags.warningCalledIn) outcome = 'You kept spending, and the Treasury did run dry. Beijing’s finance bureau noted it.';
-      else outcome = 'You kept spending, and the money held. Lin’s warning did not come true.';
-    } else if (c.status === 'corrected') outcome = 'Corrected.';
-    else if (c.status === 'defended') {
+    let statusBadge;
+    if (c.status === 'corrected') {
+      statusBadge = 'Repaired';
+      outcome = 'Corrected.';
+    } else if (c.status === 'defended') {
+      statusBadge = 'Defended';
       outcome = c.outcomeDependentDefence
         ? 'Defended. The defence rests on something you could not have known when you decided, so it does not vindicate the original choice.'
         : 'Defended.';
-    } else outcome = c.suppressed ? 'Left unresolved, and you refused to hear it.' : 'Left unresolved.';
+    } else {
+      statusBadge = 'Unresolved';
+      outcome = c.suppressed ? 'Left unresolved, and you refused to hear it.' : 'Left unresolved.';
+    }
     return {
       id: c.id,
-      kind: def.kind ?? 'wrong',
       label: def.label,
       opened: def.opened,
       outcome,
       status: c.status,
+      statusBadge,
+      menciusLine: MENCIUS_LINE[c.id] ?? `${def.source.passage}.`,
       source: def.source,
-      sourceLabel: STATUS_LABEL[def.source.status],
     };
   });
 
@@ -68,7 +155,11 @@ export function buildDebrief(state) {
     note: h.note,
   }));
 
+  const openWrongs = ledger.filter((l) => l.status === 'open').length;
+  const repairedWrongs = ledger.filter((l) => l.status === 'corrected').length;
   const careerSuccess = ending.career === 'promoted' || ending.career === 'retained';
+  const diverged = (careerSuccess && ending.ethical === 'compromised') || (!careerSuccess && ending.ethical === 'clear');
+
   const measuresNote =
     careerSuccess && ending.ethical === 'compromised'
       ? 'The two verdicts disagreed. Beijing rewarded the province’s results, while Mencius’s standard left wrongs on your record. Keeping the books in order is not the same as treating the people well.'
@@ -78,13 +169,25 @@ export function buildDebrief(state) {
 
   return {
     seed: state.seed,
+    turnsPlayed: Math.min(state.turn, state.maxTurns),
+    maxTurns: state.maxTurns,
+    endedEarly: Boolean(state.flags.removed && state.turn < state.maxTurns),
+    headline: makeHeadline(state),
+    careerBadge: CAREER_META[ending.career].label,
+    careerTone: CAREER_META[ending.career].tone,
+    ethicalBadge: ending.ethical === 'clear' ? 'Clear' : 'Compromised',
+    ethicalTone: ending.ethical === 'clear' ? 'good' : 'bad',
+    diverged,
     political: state.flags.collapsed ? CAREER.collapsed : state.flags.insolvent ? CAREER.insolvent : CAREER[ending.career],
+    menciusVerdict: makeMenciusVerdict(state, openWrongs, repairedWrongs),
+    linEpilogue: makeLinEpilogue(state, ledger),
+    replayHint: makeReplayHint(state, diverged),
     career: ending.career,
     measures: measuresNote,
     ethical:
       ending.ethical === 'clear'
         ? 'No wrong was left unrepaired.'
-        : `${ledger.filter((l) => l.status === 'open' && l.kind !== 'concern').length} wrong(s) left unrepaired.`,
+        : `${openWrongs} wrong(s) left unrepaired.`,
     summary: ETHICAL[ending.ethical],
     timeline,
     ledger,
@@ -100,18 +203,13 @@ export function buildDebrief(state) {
       {
         title: 'Rule relied on officials who would say unwelcome things',
         body:
-          'Mencius says a minister who finds the ruler at fault should remonstrate, and if the ruler repeatedly does not listen, should leave or, if close enough to the ruler, remove him (5B9). In the game, Lin Wei raises specific wrongs, resigns if ignored three times, and leaves you blind to risks. The thresholds are game design, not Mencius’s.',
+          'Mencius says a minister who finds the ruler at fault should remonstrate, and if the ruler repeatedly does not listen, should leave or, if close enough to the ruler, remove him (5B9). In the game, Lin Wei raises specific wrongs, resigns if ignored three times, and leaves you blind to risks.',
       },
       {
         title: 'Performance and moral legitimacy can disagree',
         body:
           'In the tradition Mencius draws on, a ruler who despoils humaneness and rightness becomes a “mere fellow” (1B8). Modern commentary often frames legitimacy through economic performance and stability instead. Here Beijing judges the province’s accounts and condition while Mencius judges how the people were treated — and the two verdicts can split.',
       },
-    ],
-    designNotes: [
-      'The thresholds (three ignored remonstrances before Lin resigns, Beijing’s inspection and career ladder at the end) are game design, not claims about Mencius.',
-      'Whether a choice opens a charge never depends on luck. It depends on what you chose and what you had been told.',
-      'Only the charge about punishing the unreached is directly supported by a passage. The others are inferences or adaptations, as labelled above.',
     ],
   };
 }

@@ -110,119 +110,6 @@ suite('ethics are deterministic and fair', () => {
 });
 
 suite('remonstrance and removal', () => {
-  it('even a player who avoids every known wrong meets Lin', () => {
-    let met = 0;
-    for (let seed = 1; seed <= 200; seed++) {
-      const s = play(seed, (v) => (v.kind === 'remonstrance' ? 'correct' : available(v).find((c) => !ALL_WRONGS.has(c.id))?.id));
-      if (s.charges.length > 0) met++;
-    }
-    expect(met / 200).toBeGreaterThan(0.9);
-  });
-
-  it('Lin’s budget warning is informative, not a verdict: it shows numbers and cannot be shut down', () => {
-    let tested = 0;
-    for (let seed = 1; seed <= 100 && tested < 5; seed++) {
-      const s = play(seed, (v) => (v.kind === 'remonstrance' ? 'correct' : available(v).find((c) => !ALL_WRONGS.has(c.id))?.id), (st) => st.current?.kind === 'remonstrance');
-      if (s.phase === 'ended' || s.current.chargeId !== 'fiscalConcern') continue;
-      const view = describe(s);
-      expect(view.choices.map((c) => c.id)).toEqual(['correct', 'defend']);
-      expect(view.paragraphs[0]).toMatch(/Treasury stands at -?\d+/);
-      expect(view.paragraphs[0]).toMatch(/about \d+ short/);
-      expect(() => choose(s, 'suppress')).toThrow();
-      tested++;
-    }
-    expect(tested).toBeGreaterThan(0);
-  });
-
-  it('declining the advice is allowed, never escalates toward resignation, and is a bet', () => {
-    let tested = 0;
-    for (let seed = 1; seed <= 100 && tested < 5; seed++) {
-      const s = play(seed, (v) => (v.kind === 'remonstrance' ? 'correct' : available(v).find((c) => !ALL_WRONGS.has(c.id))?.id), (st) => st.current?.kind === 'remonstrance');
-      if (s.phase === 'ended' || s.current.chargeId !== 'fiscalConcern') continue;
-      const next = choose(s, 'defend');
-      expect(next.charges.find((c) => c.id === 'fiscalConcern').status).toBe('defended');
-      expect(next.remonstrances).toBe(0);
-      expect(next.flags.budgetWarningIgnored).toBe(true);
-      tested++;
-    }
-    expect(tested).toBeGreaterThan(0);
-  });
-
-  it('heeding the advice has a real price in welfare and a real saving in money', () => {
-    const def = CHARGES.fiscalConcern;
-    const eff = def.correct.effects;
-    expect(eff.some((e) => e.type === 'meter' && e.key === 'treasury' && e.delta > 0)).toBe(true);
-    expect(eff.some((e) => e.type === 'meter' && e.key === 'welfare' && e.delta < 0)).toBe(true);
-  });
-
-  it('scaled-back relief keeps costing welfare every winter week, so heeding is not a free win', () => {
-    const turn = (flags) => {
-      const s = createGame(6);
-      s.turn = 4;
-      s.phase = 'result';
-      s.current = { kind: 'event', eventId: 'x' };
-      s.result = { title: '', text: '', deltas: {} };
-      s.flags = { ...s.flags, reliefOn: true, ...flags };
-      s.meters.welfare = 60;
-      return proceed(s);
-    };
-    const full = turn({});
-    const scaled = turn({ reliefScaled: true });
-    expect(scaled.meters.welfare).toBeLessThan(full.meters.welfare);
-    expect(scaled.meters.treasury).toBeGreaterThan(full.meters.treasury);
-  });
-
-  it('it only appears when the money really is going to run out', () => {
-    const mk = (treasury) => {
-      const s = createGame(6);
-      s.turn = 4;
-      s.flags.reliefOn = true;
-      s.meters.treasury = treasury;
-      return s;
-    };
-    const warn = (d) => CHARGES.fiscalConcern.trigger(d);
-    expect(warn(mk(80))).toBe(false);
-    expect(warn(mk(5))).toBe(true);
-    const scaled = mk(5);
-    scaled.flags.reliefScaled = true;
-    expect(warn(scaled)).toBe(false);
-  });
-
-  it('ignoring it and running dry is reported to Beijing, once', () => {
-    const s = createGame(6);
-    s.turn = 5;
-    s.phase = 'result';
-    s.current = { kind: 'event', eventId: 'x' };
-    s.result = { title: '', text: '', deltas: {} };
-    s.flags.budgetWarningIgnored = true;
-    s.flags.reliefOn = true;
-    s.meters.treasury = -2;
-    const first = proceed(s);
-    expect(first.flags.warningCalledIn).toBe(true);
-    expect(first.flags.beijingConcerns).toBe(1);
-    expect(first.turnNotes.join(' ')).toMatch(/as Lin warned/);
-
-    first.phase = 'result';
-    first.current = { kind: 'event', eventId: 'x' };
-    first.result = { title: '', text: '', deltas: {} };
-    const second = proceed(first);
-    expect(second.flags.beijingConcerns).toBe(1);
-  });
-
-  it('keeping the money safe means the warning never comes true', () => {
-    const s = createGame(6);
-    s.turn = 5;
-    s.phase = 'result';
-    s.current = { kind: 'event', eventId: 'x' };
-    s.result = { title: '', text: '', deltas: {} };
-    s.flags.budgetWarningIgnored = true;
-    s.flags.reliefOn = true;
-    s.meters.treasury = 40;
-    const next = proceed(s);
-    expect(next.flags.warningCalledIn).toBeFalsy();
-    expect(next.flags.beijingConcerns).toBeFalsy();
-  });
-
   it('Lin raises a charge on the turn after it opens', () => {
     const s = play(5, (v, st) => (st.turn === 1 ? 'hold-reserve' : undefined), (st) => st.turn === 2);
     expect(s.current.kind).toBe('remonstrance');
@@ -320,7 +207,7 @@ suite('the calendar and weekly accounts shown to the player match the rules', ()
   it('the weekly Treasury line is exactly what the next turn applies', () => {
     for (const [turn, flags] of [
       [2, { reliefOn: true }],
-      [4, { reliefOn: true, reliefScaled: true }],
+      [4, { reliefOn: true }],
       [7, { reliefOn: true }],
       [8, { reliefOn: true }],
       [9, { reliefOn: true }],
@@ -337,14 +224,6 @@ suite('the calendar and weekly accounts shown to the player match the rules', ()
       const next = proceed(s);
       expect(next.meters.treasury - 50, `turn ${turn} ${JSON.stringify(flags)}`).toBe(predicted);
     }
-  });
-
-  it('scaled-back relief shows the lower weekly cost', () => {
-    const full = weeklyTreasury(stateAt(3, { reliefOn: true }));
-    const scaled = weeklyTreasury(stateAt(3, { reliefOn: true, reliefScaled: true }));
-    expect(full.net).toBe(-4);
-    expect(scaled.net).toBe(-2);
-    expect(scaled.items[0].label).toMatch(/scaled back/);
   });
 
   it('shows no regular change when relief is off and it is still winter', () => {
@@ -884,6 +763,11 @@ suite('full-run simulation', () => {
       endings.add(`${s.ending.career}/${s.ending.ethical}`);
       const d = buildDebrief(s);
       expect(d.summary).toBeTruthy();
+      expect(d.headline).toBeTruthy();
+      expect(d.menciusVerdict).toBeTruthy();
+      expect(d.linEpilogue).toBeTruthy();
+      expect(d.replayHint).toBeTruthy();
+      for (const l of d.ledger) expect(l.menciusLine).toBeTruthy();
     }
   });
 
@@ -912,9 +796,7 @@ suite('content', () => {
     for (const c of Object.values(CHARGES)) {
       expect(c.defendLabel, `missing defendLabel on ${c.id}`).toBeTruthy();
       expect(c.defence, `missing defence object on ${c.id}`).toBeTruthy();
-      if (c.kind !== 'concern') {
-        expect(c.defence.rejectText, `missing rejectText on ${c.id}`).toBeTruthy();
-      }
+      expect(c.defence.rejectText, `missing rejectText on ${c.id}`).toBeTruthy();
     }
   });
 
@@ -943,7 +825,6 @@ suite('content', () => {
       const opts = available(view);
       const has = (id) => opts.some((c) => c.id === id);
       if (view.kind === 'remonstrance') {
-        if (s.current.chargeId === 'fiscalConcern') return s.meters.treasury < 12 ? 'correct' : 'defend';
         return s.remonstrances < 2 ? 'defend' : 'correct';
       }
       if (s.turn === 1 && has('targeted-relief')) return 'targeted-relief';

@@ -61,7 +61,6 @@ const policies = {
     const opts = view.choices.filter((c) => !c.locked);
     const has = (id) => opts.some((c) => c.id === id);
     if (view.kind === 'remonstrance') {
-      if (s.current.chargeId === 'fiscalConcern') return s.meters.treasury < 12 ? 'correct' : 'defend';
       return s.remonstrances < 2 ? 'defend' : 'correct';
     }
     if (s.turn === 1 && has('targeted-relief')) return 'targeted-relief';

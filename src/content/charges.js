@@ -1,10 +1,6 @@
-import {
-  m, flag, WINTER_END_TURN, RELIEF_UPKEEP, RELIEF_UPKEEP_SCALED, projectedShortfall, owedRepayments,
-} from './helpers.js';
+import { m, flag } from './helpers.js';
 
 // Each charge is a specific wrong the player can knowingly commit.
-// `source.status`: direct (the passage addresses it), inference (an application of the passage),
-// adaptation (game design; no verified passage applies).
 export const CHARGES = {
   entrapment: {
     id: 'entrapment',
@@ -154,41 +150,6 @@ export const CHARGES = {
     },
     opened:
       'You knew which villages had not been reached, and you could have afforded to help some of them. Weeks passed.',
-  },
-
-  // Not a wrong: advice. Lin shows the numbers, and the ruler can heed him or bet that he is wrong.
-  fiscalConcern: {
-    id: 'fiscalConcern',
-    kind: 'concern',
-    label: 'Lin’s warning that the money would run out',
-    trigger: (d) =>
-      d.flags.reliefOn && !d.flags.reliefScaled && d.turn >= 3 && d.turn <= WINTER_END_TURN && projectedShortfall(d) > 0,
-    source: {
-      passage: 'No verified passage',
-      status: 'adaptation',
-      note:
-        'Game design. Mencius does not discuss provincial budgets. This is ordinary advice from a minister, included so that remonstrance is not always a verdict: the ruler can heed the warning or bet that it is wrong, and either choice has a price.',
-    },
-    linLine: (d) => {
-      const owed = owedRepayments(d);
-      const weeks = Math.max(0, WINTER_END_TURN - d.turn);
-      const upkeep = d.flags.reliefScaled ? RELIEF_UPKEEP_SCALED : RELIEF_UPKEEP;
-      return `I have run the numbers, Governor. The Treasury stands at ${d.meters.treasury}${owed ? `, and we owe ${owed} in repayments` : ''}. Relief costs ${upkeep} a week, and there are ${weeks} weeks of winter left. If nothing changes we will be about ${projectedShortfall(d)} short before it ends. I may be wrong about the weather, but that is where the money goes.`;
-    },
-    correctLabel: 'Scale relief back to essentials now',
-    defendLabel: 'Keep spending as it is, and find the money later',
-    correct: {
-      effects: [m('treasury', 8), m('welfare', -6), flag('reliefScaled')],
-      text: 'You scale relief back to essentials. The Treasury breathes, and families in the covered villages notice. Lin says quietly: “I wish I had a cleaner set of numbers to bring you.”',
-    },
-    defence: {
-      when: () => true,
-      effects: [flag('budgetWarningIgnored')],
-      outcomeDependent: false,
-      acceptText:
-        'You tell Lin the people come first and the money will be found. He nods slowly. “Then it is your decision, Governor. I will hold us to the numbers.”',
-    },
-    opened: 'Lin showed you the numbers and warned that the Treasury would run out before winter ended.',
   },
 
   squeezedPeople: {

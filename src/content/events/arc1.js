@@ -1,7 +1,6 @@
 import { m, flag, fact, later, schedule, beijingWillHelp, BEIJING_REFUSES, askedBeijing } from '../helpers.js';
-import { CHARGES } from '../charges.js';
 
-const isWrong = (c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern';
+const isWrong = (c) => c.status === 'open';
 
 const paras = (...p) => p.join('\n\n');
 
