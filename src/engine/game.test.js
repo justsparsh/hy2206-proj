@@ -3,7 +3,7 @@ import { createGame, describe, choose, proceed } from './game.js';
 import { evaluate } from './conditions.js';
 import { buildDebrief } from './debrief.js';
 import { EVENTS, CHARGES, FACTS } from '../content/index.js';
-import { season, weeklyTreasury } from '../content/helpers.js';
+import { season, weeklyTreasury, weeklyEffects } from '../content/helpers.js';
 
 const available = (view) => view.choices.filter((c) => !c.locked);
 
@@ -228,6 +228,28 @@ suite('the calendar and weekly accounts shown to the player match the rules', ()
 
   it('shows no regular change when relief is off and it is still winter', () => {
     expect(weeklyTreasury(stateAt(3)).items).toEqual([]);
+  });
+
+  it('low state capacity drains Treasury below 25 and both Treasury and Welfare below 12, and weeklyEffects shows it', () => {
+    const step = (capacity) => {
+      const s = stateAt(4, { reliefOn: false });
+      s.meters = { treasury: 40, welfare: 60, capacity };
+      const preview = weeklyEffects(s);
+      s.phase = 'result';
+      s.current = { kind: 'event', eventId: 'x' };
+      s.result = { title: '', text: '', deltas: {} };
+      return { preview, next: proceed(s) };
+    };
+    const healthy = step(40);
+    const overstretched = step(20);
+    const broken = step(10);
+
+    expect(overstretched.preview.some((i) => /Overstretched/.test(i.label))).toBe(true);
+    expect(overstretched.next.meters.treasury).toBe(healthy.next.meters.treasury - 2);
+
+    expect(broken.preview.some((i) => /Administrative breakdown/.test(i.label))).toBe(true);
+    expect(broken.next.meters.treasury).toBe(healthy.next.meters.treasury - 2);
+    expect(broken.next.meters.welfare).toBe(healthy.next.meters.welfare - 2);
   });
 });
 

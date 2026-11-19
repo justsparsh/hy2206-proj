@@ -4,16 +4,13 @@ import { rand, pickWeighted } from './rng.js';
 import { EVENTS, CHARGES } from '../content/index.js';
 
 import {
-  WINTER_START_TURN, WINTER_END_TURN, springRevenue, RELIEF_UPKEEP,
+  WINTER_START_TURN, WINTER_END_TURN, springRevenue, RELIEF_UPKEEP, SPRING_RECOVERY,
+  UNREST_AT, SEVERE_UNREST_AT, COLLAPSE_AT, OVERSTRETCH_AT, BREAKDOWN_AT,
 } from '../content/helpers.js';
 
 export const MAX_TURNS = 14;
 const WINTER_END = WINTER_END_TURN;
-const SPRING_RECOVERY = 2;
 const RESIGN_AT = 3;
-const UNREST_AT = 30;
-const SEVERE_UNREST_AT = 20;
-const COLLAPSE_AT = 10;
 
 export function createGame(seed = Math.floor(Math.random() * 1e9)) {
   const d = {
@@ -21,7 +18,7 @@ export function createGame(seed = Math.floor(Math.random() * 1e9)) {
     rngState: seed >>> 0,
     turn: 1,
     maxTurns: MAX_TURNS,
-    meters: { treasury: 60, welfare: 60, capacity: 50 },
+    meters: { treasury: 60, welfare: 60, capacity: 46 },
     flags: {},
     facts: [],
     commitments: [],
@@ -67,7 +64,9 @@ function startTurn(d) {
     d.turnNotes.push(failed ? c.failText : c.text);
   }
 
-  // Winter closes in, and relief operations cost money every turn. Both ease when winter ends.
+  const startCap = d.meters.capacity;
+
+  // Winter closes in, and relief operations cost money and wear down offices every turn. Both ease when winter ends.
   const winter = d.turn >= WINTER_START_TURN && d.turn <= WINTER_END;
   if (winter) {
     applyEffect(d, { type: 'meter', key: 'welfare', delta: -2 });
@@ -97,6 +96,18 @@ function startTurn(d) {
     const loss = Math.ceil(d.flags.uncovered / 5);
     applyEffect(d, { type: 'meter', key: 'welfare', delta: -loss });
     d.turnNotes.push('Hunger deepens in the villages the relief has not reached.');
+  }
+
+  // Overstretched offices lose money to bottlenecks and overtime.
+  if (startCap < BREAKDOWN_AT) {
+    applyEffects(d, [
+      { type: 'meter', key: 'treasury', delta: -2 },
+      { type: 'meter', key: 'welfare', delta: -2 },
+    ]);
+    d.turnNotes.push('The provincial bureaucracy is breaking down. Shipments stall, bills go unpaid, and county offices cannot keep up.');
+  } else if (startCap < OVERSTRETCH_AT) {
+    applyEffect(d, { type: 'meter', key: 'treasury', delta: -2 });
+    d.turnNotes.push('Your county offices are stretched thin. Overtime, waste, and bottlenecks are eating into the budget.');
   }
 
   // Low welfare is not a score: it breaks the province, in stages.

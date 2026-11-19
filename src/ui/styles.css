@@ -55,8 +55,15 @@ header {
 .season.winter { color: #3a5a7a; }
 .season.spring { color: var(--good); }
 .sidebar ul.plain { list-style: none; padding-left: 0; }
-.sidebar ul.plain li { display: flex; justify-content: space-between; gap: 0.5rem; }
-.sidebar li.net { border-top: 1px solid var(--line); padding-top: 0.25rem; margin-top: 0.1rem; }
+.sidebar ul.plain li { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.sidebar ul.weekly-list li { flex-direction: column; gap: 0.15rem; padding: 0.25rem 0; }
+.sidebar ul.weekly-list li.weekly-warn {
+  background: #faeae8; margin: 0 -0.4rem 0.25rem; padding: 0.3rem 0.45rem; border-radius: 3px;
+}
+.sidebar ul.weekly-list li.weekly-warn .weekly-label { color: var(--bad); font-weight: 600; }
+.weekly-deltas { display: flex; flex-wrap: wrap; gap: 0.2rem 0.65rem; font-size: 0.82rem; }
+.sidebar li.net { border-top: 1px solid var(--line); padding-top: 0.35rem; margin-top: 0.2rem; }
+.sidebar li.net .weekly-label { font-weight: 600; }
 .positive { color: var(--good); }
 .small { font-size: 0.8rem; margin: 0.4rem 0 0.2rem; }
 .meters { display: flex; gap: 1rem; flex: 1; flex-wrap: nowrap; min-width: 260px; }
