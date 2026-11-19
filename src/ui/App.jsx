@@ -86,7 +86,11 @@ function Sidebar({ state }) {
       <Commitments state={state} />
       <section>
         <h3>Beijing's patience</h3>
-        {(state.flags.beijingAsks ?? 0) === 0 ? <p className="muted">You have not yet asked Beijing for help.</p> : (
+        {(state.flags.beijingAsks ?? 0) === 0 ? (
+          <p className="muted">You have not yet asked Beijing for help. It will step in at most once.</p>
+        ) : (state.flags.beijingAsks ?? 0) >= BEIJING_HELP_LIMIT ? (
+          <p>You have already asked Beijing for help. It will not step in again.</p>
+        ) : (
           <p>You have asked Beijing for help {state.flags.beijingAsks} time{state.flags.beijingAsks === 1 ? '' : 's'}. It will answer {BEIJING_HELP_LIMIT} in all.</p>
         )}
       </section>

@@ -5,9 +5,9 @@ export const later = (delay, effects, text) => ({ type: 'later', delay, effects,
 export const schedule = (eventId, delay) => ({ type: 'schedule', eventId, delay });
 
 // Beijing's patience is limited: it will answer a governor's request for money this many times, in total.
-export const BEIJING_HELP_LIMIT = 2;
+export const BEIJING_HELP_LIMIT = 1;
 export const beijingWillHelp = { flag: 'beijingAsks', op: '<', value: BEIJING_HELP_LIMIT };
-export const BEIJING_REFUSES = 'Beijing has already helped twice, and will not do so again.';
+export const BEIJING_REFUSES = 'Beijing has already stepped in once, and will not do so again.';
 export const askedBeijing = { type: 'flagAdd', key: 'beijingAsks', delta: 1 };
 
 // Turn 1 is autumn. Winter runs from this turn to WINTER_END_TURN, and spring follows.
