@@ -10,7 +10,7 @@ export const CHARGES = {
       passage: 'Mencius 1A7',
       status: 'direct',
       note:
-        '“When they thereupon sink into crime, to go and punish the people is to trap them. When there are benevolent persons in positions of authority, how is it possible for them to trap the people?” (Van Norden 2008; confirmed in Legge and Lau.)',
+        '“When they thereupon sink into crime, to go and punish the people is to trap them. When there are benevolent persons in positions of authority, how is it possible for them to trap the people?” (Van Norden 2008, quoted in the Stanford Encyclopedia of Philosophy.)',
     },
     linLine:
       'The people you punished did not take grain for profit, Governor. They took it because we had not come. I would not be doing my job if I let this pass.',
@@ -313,7 +313,7 @@ export const CHARGES = {
       passage: 'Mencius 1A7',
       status: 'inference',
       note:
-        '“When they thereupon sink into crime, to go and punish the people is to trap them.” (Van Norden 2008; confirmed in Legge and Lau.) The passage concerns crime driven by want; applying it to protest is an inference.',
+        '“When they thereupon sink into crime, to go and punish the people is to trap them.” (Van Norden 2008, quoted in the Stanford Encyclopedia of Philosophy.) The passage concerns crime driven by want; applying it to protest is an inference.',
     },
     linLine:
       'You were told who was in those crowds, Governor. They were not an enemy. They were people the winter had broken, and we sent the police. Whatever we call it, it will not feed them.',

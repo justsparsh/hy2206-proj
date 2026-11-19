@@ -1,10 +1,10 @@
-// Passages cited in the debrief, with how well each has been checked.
+// Passages cited in the debrief, aligned with the project bibliography.
 export const SOURCES = [
   {
     passage: 'Mencius 1A7',
     summary:
       'People who lack a constant livelihood will not keep a constant heart; punishing them when they fall into crime is to trap them. A king who spares an ox out of pity is told to extend the same compassion to his people.',
-    check: 'Checked across Van Norden (2008), Legge, and Lau translations; quoted in part via the Stanford Encyclopedia of Philosophy.',
+    check: 'Consulted via Bryan Van Norden’s entry on Mencius in the Stanford Encyclopedia of Philosophy (quoting Van Norden 2008).',
   },
   {
     passage: 'Mencius 1B6',
@@ -21,13 +21,13 @@ export const SOURCES = [
     passage: 'Mencius 3A3',
     summary:
       'Mencius tells Duke Wen of Teng that humane government begins by regulating land and taxation so the people have a constant livelihood rather than being crushed by heavy exactions.',
-    check: 'Checked via Van Norden (2008), Bloom, and Legge summaries and excerpts.',
+    check: 'Consulted via Bryan Van Norden’s entry on Mencius in the Stanford Encyclopedia of Philosophy.',
   },
   {
     passage: 'Mencius 5A3',
     summary:
       'Sage-king Shun enriched his treacherous brother Xiang with the territory of Youbi out of family feeling, but appointed independent officials to administer it so Xiang could not abuse the people.',
-    check: 'Checked via Van Norden (2008), Legge, and Bloom summaries and excerpts.',
+    check: 'Consulted via Bryan Van Norden’s entry on Mencius in the Stanford Encyclopedia of Philosophy.',
   },
   {
     passage: 'Mencius 5B9',

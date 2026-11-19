@@ -196,19 +196,19 @@ export function buildDebrief(state) {
     sources: SOURCES,
     ideas: [
       {
-        title: 'Livelihood came first',
+        title: 'Conditional rule — and two ways to measure it',
         body:
-          'For Mencius, securing people’s food, safety, and stable livelihood was the ruler’s first obligation (1A7, 3A3). Punishing people driven into wrongdoing by want is a trap, and a shortcut that works on paper — holding the reserve, taxing empty barns, staging a model village — does not cease to be a wrong.',
+          'In the tradition Mencius draws on, a ruler’s standing is never permanent: one who despoils humaneness and rightness becomes a “mere fellow” (1B8). Modern commentary often frames legitimacy through economic performance and stability instead. Here Beijing judges the province’s accounts and condition while Mencius’s standard judges how the people were treated — and under scarcity, those two verdicts can pull apart.',
       },
       {
-        title: 'Rule relied on officials who would say unwelcome things',
+        title: 'How Mencius shaped the choices: livelihood first',
         body:
-          'Mencius says a minister who finds the ruler at fault should remonstrate, and if the ruler repeatedly does not listen, should leave or, if close enough to the ruler, remove him (5B9). In the game, Lin Wei raises specific wrongs, resigns if ignored three times, and leaves you blind to risks.',
+          'Rather than using a morality meter, the game draws its specific wrongs from Mencius’s claim that securing people’s livelihood is the first duty of government (1A7, 1B6, 3A3, 5A3). Punishing people driven into wrongdoing by want is a trap, and shortcuts that look prudent on paper — holding back reserves, taxing drought-hit counties, staging a model village — remain wrongs even when they work.',
       },
       {
-        title: 'Performance and moral legitimacy can disagree',
+        title: 'How Mencius shaped the voice: ministerial remonstrance',
         body:
-          'In the tradition Mencius draws on, a ruler who despoils humaneness and rightness becomes a “mere fellow” (1B8). Modern commentary often frames legitimacy through economic performance and stability instead. Here Beijing judges the province’s accounts and condition while Mencius judges how the people were treated — and the two verdicts can split.',
+          'Mencius places the duty to reprove a wayward ruler on ministers close to power: if the ruler repeatedly refuses to listen, the minister should leave or remove him (5B9). Vice-Governor Lin Wei embodies that safeguard — confronting you directly and resigning if ignored.',
       },
     ],
   };
