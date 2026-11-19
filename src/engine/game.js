@@ -150,8 +150,9 @@ function startTurn(d) {
 
 function pendingRemonstrance(d) {
   if (!d.ministerPresent || d.remonstratedThisTurn) return null;
-  // A matter you told Lin was closed is not raised again. What he can still raise is the silencing itself.
-  return d.charges.find((c) => c.status === 'open' && !c.suppressed && c.turnOpened < d.turn) ?? null;
+  // Lin raises each open matter once. A matter you defended or told him was closed is not repeated every week;
+  // it remains on the record, and closing a matter opens a separate charge about the silencing itself.
+  return d.charges.find((c) => c.status === 'open' && !c.suppressed && !c.raised && c.turnOpened < d.turn) ?? null;
 }
 
 function inWindow(ev, turn) {
@@ -466,16 +467,24 @@ function respond(d, choiceId) {
     repairCharge(d, charge.id, 'corrected');
     text = def.correct.text;
     // Once you have let Lin speak again, the matters you shut him out of can be raised again.
-    if (charge.id === 'silencedRemonstrance') for (const c of d.charges) c.suppressed = false;
+    if (charge.id === 'silencedRemonstrance') {
+      for (const c of d.charges) {
+        if (c.suppressed) {
+          c.suppressed = false;
+          c.raised = false;
+        }
+      }
+    }
   } else if (choiceId === 'defend') {
-    valid = Boolean(def.defence) && evaluate(def.defence.when, d);
+    valid = Boolean(def.defence?.when) && evaluate(def.defence.when, d);
     if (valid) {
       charge.status = 'defended';
-      charge.outcomeDependentDefence = def.defence.outcomeDependent;
+      charge.outcomeDependentDefence = Boolean(def.defence.outcomeDependent);
       if (def.defence.effects) applyEffects(d, def.defence.effects);
       text = def.defence.acceptText;
     } else {
       d.remonstrances += 1;
+      applyEffect(d, { type: 'meter', key: 'capacity', delta: -2 });
       text = def.defence?.rejectText ?? 'Lin hears you out. “I hear the argument, Governor, and I do not accept it.”';
     }
   } else if (choiceId === 'suppress') {
@@ -561,10 +570,12 @@ function finish(d) {
   // Beijing judges results, not Mencian conduct: the province's accounts and condition decide the posting.
   const debt = d.meters.treasury;
   let career;
+  const strongProvince = d.meters.welfare >= 55 && debt >= 0 && d.meters.capacity >= 25;
+  const strongNumbers = debt >= 15 && d.meters.capacity >= 35 && d.meters.welfare >= 42;
   if (d.flags.removed) career = 'dismissed';
   else if (debt <= -10 || (d.flags.defaulted && debt < 0)) career = 'demoted';
   else if (failing || debt < 0 || d.flags.bailedOut) career = 'sidelined';
-  else if (d.meters.welfare >= 55 && debt >= 0 && d.meters.capacity >= 25) career = 'promoted';
+  else if ((strongProvince || strongNumbers) && d.flags.verdict !== 'censure') career = 'promoted';
   else career = 'retained';
 
   d.ending = { political, ethical: open.length ? 'compromised' : 'clear', career };

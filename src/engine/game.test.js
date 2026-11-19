@@ -12,7 +12,7 @@ const orFallback = (view, id) => (id === 'correct' && view.choices.find((c) => c
 
 // Every choice that knowingly opens a charge. A player who knows all of these still has to find another way.
 const ALL_WRONGS = new Set([
-  'hold-reserve', 'punish', 'visit-hongyan', 'say-nothing', 'award-kin', 'let-it-run', 'cut-rations', 'divert-budgets', 'report-low', 'crush-protest',
+  'hold-reserve', 'punish', 'visit-hongyan', 'say-nothing', 'award-kin', 'let-it-run', 'cut-rations', 'divert-budgets', 'report-low', 'crush-protest', 'collect-full', 'stage-visit',
 ]);
 
 // Plays a run. `policy(view, state)` returns a choice id, or undefined to take the first available choice.
@@ -908,12 +908,100 @@ suite('content', () => {
     for (const c of Object.values(CHARGES)) expect(['direct', 'inference', 'adaptation']).toContain(c.source.status);
   });
 
+  it('every charge has a tailored defence label and specific Lin response', () => {
+    for (const c of Object.values(CHARGES)) {
+      expect(c.defendLabel, `missing defendLabel on ${c.id}`).toBeTruthy();
+      expect(c.defence, `missing defence object on ${c.id}`).toBeTruthy();
+      if (c.kind !== 'concern') {
+        expect(c.defence.rejectText, `missing rejectText on ${c.id}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('defending a charge once leaves it open without repeating the same remonstrance every turn', () => {
+    let s = play(5, (v, st) => (st.turn === 1 ? 'hold-reserve' : undefined), (st) => st.turn === 2);
+    expect(s.current.kind).toBe('remonstrance');
+    expect(s.current.chargeId).toBe('failedTrust');
+    const capBefore = s.meters.capacity;
+    s = choose(s, 'defend');
+    expect(s.charges.find((c) => c.id === 'failedTrust').status).toBe('open');
+    expect(s.remonstrances).toBe(1);
+    expect(s.meters.capacity).toBeLessThan(capBefore);
+    // Advance to next turn: failedTrust should not be raised a second time.
+    s = proceed(s);
+    s = choose(s, available(describe(s))[0].id);
+    s = proceed(s);
+    if (s.current?.kind === 'remonstrance') {
+      expect(s.current.chargeId).not.toBe('failedTrust');
+    }
+  });
+
+  it('the two verdicts can disagree in both directions: promoted/compromised and sidelined/clear both occur', () => {
+    let promotedCompromised = 0;
+    let sidelinedClear = 0;
+    const pragmatist = (view, s) => {
+      const opts = available(view);
+      const has = (id) => opts.some((c) => c.id === id);
+      if (view.kind === 'remonstrance') {
+        if (s.current.chargeId === 'fiscalConcern') return s.meters.treasury < 12 ? 'correct' : 'defend';
+        return s.remonstrances < 2 ? 'defend' : 'correct';
+      }
+      if (s.turn === 1 && has('targeted-relief')) return 'targeted-relief';
+      if (s.flags.uncovered > 0) {
+        for (const id of ['delegate-extend', 'suspend-and-extend', 'extend-all']) if (has(id)) return id;
+      }
+      for (const id of [
+        'award-kin', 'fund-park', 'stage-visit', 'collect-full', 'draw-reserve', 'flood-reserve',
+        'free-seed', 'sell-seed', 'evacuate', 'emergency-aid', 'rebuild-homes', 'subsidised-loans',
+        'price-ceiling', 'send-inspectors', 'defer-affected', 'special-bonds', 'cut-rations',
+        'strengthen-admin', 'visit-counties',
+      ]) {
+        if (id === 'collect-full' && s.meters.welfare < 50) continue;
+        if (id === 'stage-visit' && s.meters.welfare < 48) continue;
+        if (id === 'cut-rations' && s.meters.welfare < 52) continue;
+        if (id === 'fund-park' && s.meters.welfare < 48) continue;
+        if (has(id)) return id;
+      }
+      return opts[0].id;
+    };
+    const clean = (view) => {
+      if (view.kind === 'remonstrance') return 'correct';
+      const opts = available(view);
+      return (opts.find((c) => !ALL_WRONGS.has(c.id)) ?? opts[0]).id;
+    };
+    for (let seed = 1; seed <= 120; seed++) {
+      const p = play(seed, pragmatist);
+      if (p.ending.career === 'promoted' && p.ending.ethical === 'compromised') promotedCompromised++;
+      const c = play(seed, clean);
+      if (c.ending.career === 'sidelined' && c.ending.ethical === 'clear') sidelinedClear++;
+    }
+    expect(promotedCompromised).toBeGreaterThan(5);
+    expect(sidelinedClear).toBeGreaterThan(20);
+  });
+
+  it('inspection choices always show closing text rather than a blank screen', () => {
+    const s = createGame(3);
+    s.turn = 14;
+    s.flags.verdict = 'commended';
+    for (const c of EVENTS['beijing-review'].choices(s)) {
+      for (const o of c.outcomes) expect(o.text.trim().length).toBeGreaterThan(0);
+    }
+    s.flags.interimVerdict = 'warning';
+    for (const c of EVENTS['interim-inspection'].choices(s)) {
+      for (const o of c.outcomes) expect(o.text.trim().length).toBeGreaterThan(0);
+    }
+  });
+
   it('every scheduled event and opened charge exists', () => {
     for (const ev of Object.values(EVENTS)) {
-      const json = JSON.stringify(typeof ev.choices === 'function' ? [] : ev.choices);
+      const choices = typeof ev.choices === 'function' ? ev.choices(createGame(1)) : ev.choices;
+      const json = JSON.stringify(choices);
       for (const [, id] of json.matchAll(/"eventId":"([^"]+)"/g)) expect(EVENTS[id], `missing event ${id}`).toBeTruthy();
-      for (const [, id] of json.matchAll(/"id":"(entrapment|failedTrust|notExtended|favouredKin|silencedRemonstrance)"/g)) {
-        expect(CHARGES[id]).toBeTruthy();
+      for (const c of choices) {
+        for (const rule of c.charges ?? []) expect(CHARGES[rule.id], `missing charge ${rule.id}`).toBeTruthy();
+      }
+      for (const [, id] of json.matchAll(/"type":"(?:openCharge|repairCharge)","id":"([^"]+)"/g)) {
+        expect(CHARGES[id], `missing charge ${id}`).toBeTruthy();
       }
     }
   });

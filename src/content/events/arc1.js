@@ -29,16 +29,16 @@ const harvestFailure = {
     {
       id: 'open-reserve',
       label: 'Release the provincial grain reserve and distribute free grain to all twenty villages',
-      risk: 'A delay on the mountain roads is possible.',
+      risk: 'Heavy logistical push: a landslide or washed-out bridge on the mountain road could still leave three villages unreached.',
       outcomes: [
         {
-          chance: (s) => (s.meters.capacity >= 60 ? 0.15 : 0.3),
-          effects: [m('treasury', -25), m('welfare', 7), m('capacity', -5), flag('reliefOn'), flag('reservesSpent'), flag('uncovered', 0)],
-          text: 'Trucks leave the provincial depot by noon, but a washed-out bridge strands the first convoy for three days. The grain arrives, later than it should have.',
+          chance: (s) => (s.meters.capacity >= 60 ? 0.15 : 0.35),
+          effects: [m('treasury', -26), m('welfare', 6), m('capacity', -5), flag('reliefOn'), flag('reservesSpent'), flag('uncovered', 3), fact('unreachedKnown')],
+          text: 'Trucks leave the provincial depot by noon, and seventeen villages receive grain before week’s end. A washed-out bridge blocks the high pass, leaving three mountain villages still cut off; Lin puts their names on your desk.',
         },
         {
-          effects: [m('treasury', -25), m('welfare', 12), m('capacity', -5), flag('reliefOn'), flag('reservesSpent'), flag('uncovered', 0)],
-          text: 'Trucks leave the provincial depot by noon. By the end of the week, every village has grain.',
+          effects: [m('treasury', -26), m('welfare', 10), m('capacity', -5), flag('reliefOn'), flag('reservesSpent'), flag('uncovered', 0)],
+          text: 'Trucks leave the provincial depot by noon. It empties the reserve and drains the Treasury, and by week’s end every village has grain.',
         },
       ],
     },
@@ -49,11 +49,11 @@ const harvestFailure = {
       outcomes: [
         {
           chance: 0.2,
-          effects: [m('treasury', -10), m('welfare', 8), m('capacity', -2), flag('reliefOn'), flag('uncovered', 3), fact('unreachedKnown')],
+          effects: [m('treasury', -10), m('welfare', 7), m('capacity', -2), flag('reliefOn'), flag('uncovered', 3), fact('unreachedKnown')],
           text: 'The offices stretch further than planned and cover seventeen villages. Three remain unreached; Lin has their names.',
         },
         {
-          effects: [m('treasury', -10), m('welfare', 8), m('capacity', -2), flag('reliefOn'), flag('uncovered', 7), fact('unreachedKnown')],
+          effects: [m('treasury', -10), m('welfare', 7), m('capacity', -2), flag('reliefOn'), flag('uncovered', 7), fact('unreachedKnown')],
           text: 'County offices begin distribution within days. Thirteen villages are covered. Lin has the names of the other seven on his desk.',
         },
       ],
@@ -91,12 +91,12 @@ const harvestFailure = {
     {
       id: 'hold-reserve',
       label: 'Hold the reserve for now and let the grain market adjust',
-      risk: 'Grain prices are likely to rise.',
+      risk: 'Saves the Treasury and keeps the grain reserve intact for winter, while grain prices climb.',
       charges: [{ id: 'failedTrust' }],
       outcomes: [
         {
-          effects: [m('welfare', -12), flag('reservesHeld'), flag('uncovered', 20)],
-          text: 'Prices begin to climb. By the second week, reports of empty pantries start to arrive.',
+          effects: [m('welfare', -10), flag('reservesHeld'), flag('uncovered', 20)],
+          text: 'Prices begin to climb. The provincial reserve sits untouched, and by the second week reports of empty pantries start to arrive.',
         },
       ],
     },
@@ -120,18 +120,18 @@ const depotThefts = {
     {
       id: 'punish',
       label: 'Impose a curfew and punish everyone caught',
-      risk: 'Order will return quickly.',
+      risk: 'Restores order quickly and strengthens administrative control at no cost to the Treasury.',
       charges: [{ id: 'entrapment', when: { flag: 'uncovered', op: '>', value: 0 } }],
       outcomes: [
         {
           when: { flag: 'ringPresent' },
-          effects: [m('welfare', -3), flag('orderRestored'), flag('ringCaught')],
-          text: 'Order returns within days. Among those arrested, police find the organisers of a small ring that had been reselling stolen grain.',
+          effects: [m('capacity', 4), m('welfare', -2), flag('orderRestored'), flag('ringCaught')],
+          text: 'Order returns within days, and prefecture officials praise the firm response. Among those arrested, police find the organisers of a small ring that had been reselling stolen grain.',
         },
         {
           when: { not: { flag: 'ringPresent' } },
-          effects: [m('welfare', -3), flag('orderRestored')],
-          text: 'Order returns within days. Nobody says why the raids started.',
+          effects: [m('capacity', 4), m('welfare', -2), flag('orderRestored')],
+          text: 'Order returns within days, and prefecture officials praise the firm response. Nobody says why the raids started.',
         },
       ],
     },
@@ -182,14 +182,15 @@ const depotSkimming = {
     {
       id: 'crack-down',
       label: 'Crack down: arrest everyone connected to the depots',
+      risk: 'Fast, though innocent porters may be caught in the sweep.',
       outcomes: [
         {
-          chance: 0.3,
-          effects: [m('treasury', -3), m('welfare', -4), m('capacity', 2), flag('orderRestored')],
-          text: 'The arrests sweep up some junior porters who had nothing to do with it. Lin mentions it quietly.',
+          chance: 0.35,
+          effects: [m('treasury', -4), m('welfare', -5), m('capacity', 2), flag('orderRestored')],
+          text: 'The arrests sweep up junior porters who had nothing to do with it. Lin mentions it quietly.',
         },
         {
-          effects: [m('treasury', -3), m('welfare', -2), m('capacity', 2), flag('orderRestored')],
+          effects: [m('treasury', -4), m('welfare', -2), m('capacity', 2), flag('orderRestored')],
           text: 'The skimming stops, and the staff learn that you will act.',
         },
       ],
@@ -197,21 +198,23 @@ const depotSkimming = {
     {
       id: 'audit-chain',
       label: 'Audit the supply chain end to end',
+      risk: 'Thorough, expensive, and slows down your offices.',
       outcomes: [
         {
-          effects: [m('treasury', -5), m('capacity', -3), m('welfare', 3), flag('chainAudited')],
-          text: 'The audit is slow and tedious. It also finds where the grain went and who signed for it.',
+          effects: [m('treasury', -6), m('capacity', -4), m('welfare', 3), flag('chainAudited')],
+          text: 'The audit is slow and tedious, pulling staff off other work. It also finds where the grain went and who signed for it.',
         },
       ],
     },
     {
       id: 'let-it-run',
-      label: 'Let it run: relief is arriving and the loss is modest',
+      label: 'Let it run: keep the trucks moving and avoid disrupting the depots',
+      risk: 'Costs nothing and keeps county logistics cooperative, though grain keeps disappearing.',
       charges: [{ id: 'lookedAway' }],
       outcomes: [
         {
-          effects: [m('welfare', -4), flag('skimmingContinues')],
-          text: 'The sacks keep disappearing. Villages further down the line notice first.',
+          effects: [m('capacity', 2), m('welfare', -2), flag('skimmingContinues')],
+          text: 'The trucks keep rolling without interruption, and depot managers stay cooperative. Sacks keep disappearing; villages further down the line notice first.',
         },
       ],
     },
@@ -236,11 +239,12 @@ const photograph = {
     {
       id: 'visit-hongyan',
       label: 'Travel to Hongyan and airlift supplies for the village',
+      risk: 'Cheap, calms the news cycle, and boosts your standing in the province.',
       charges: [{ id: 'notExtended', when: { all: [{ meter: 'treasury', op: '>=', value: 12 }, { flag: 'uncovered', op: '>', value: 0 }] } }],
       outcomes: [
         {
-          effects: [m('treasury', -5), m('welfare', 2)],
-          text: 'State television covers your visit. The girl in the photograph is given a coat and a hot meal.',
+          effects: [m('treasury', -4), m('welfare', 3), m('capacity', 4)],
+          text: 'State television covers your visit on the evening news. The girl in the photograph is given a coat and a hot meal, and the criticism fades overnight.',
         },
       ],
     },
@@ -799,32 +803,36 @@ const beijingReview = {
   window: [14, 14],
   setup: (s, r) => {
     const wrongs = s.charges.filter(isWrong).length;
-    // Matters Beijing has collected along the way (obstructed audits, defaults, crackdowns) count too.
-    const matters = wrongs + Number(s.flags.beijingConcerns || 0);
+    // Beijing inspects accounts, administrative failures, and visible scandals — not Mencius's ledger,
+    // unless Lin Wei's resignation or close central oversight puts unresolved matters on its desk.
+    const concerns = Number(s.flags.beijingConcerns || 0);
     // What the province still owes counts: the inspectors read the books, not just the balance.
     const owed = s.commitments.flatMap((c) => c.effects).filter((e) => e.type === 'meter' && e.key === 'treasury').reduce((a, e) => a + e.delta, 0);
     const borrowed = s.flags.bondsUsed || s.flags.beijingWatching || s.flags.bailedOut;
     const fiscal = borrowed && s.meters.treasury + owed < 0 ? [flag('fiscalCriticism'), m('capacity', -5)] : [];
-    // Beijing looks harder at a province that drew on central support.
-    const censureAt = s.flags.beijingWatching ? 1 : 2;
     const exposed = s.charges.some((c) => c.id === 'concealedLosses' && c.status === 'open') && r() < 0.4;
 
     if (exposed) return [flag('verdict', 'removed'), flag('removed'), flag('exposed')];
     if (!s.ministerPresent) {
       if (wrongs >= 1) return [flag('verdict', 'removed'), flag('removed')];
-      if (matters >= 1) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
+      if (concerns >= 1) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
       return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
     }
-    if (matters >= censureAt) return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
-    if (matters >= 1) return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
+    if (concerns >= 2 || (concerns >= 1 && s.flags.beijingWatching)) {
+      return [flag('verdict', 'censure'), m('capacity', -10), ...fiscal];
+    }
+    if (concerns >= 1 || (wrongs >= 2 && s.flags.beijingWatching)) {
+      return [flag('verdict', 'warning'), m('capacity', -3), ...fiscal];
+    }
     return [flag('verdict', 'commended'), ...fiscal];
   },
   text: (s) => {
+    const wrongs = s.charges.filter(isWrong).length;
     const intro =
       'A central inspection group from Beijing has spent a week reviewing the province’s response to the drought, the winter, and the spring that followed.';
     const extras = [
       s.flags.beijingWatching && s.flags.verdict !== 'removed'
-        ? 'Because the province drew on central support, the group examined how every yuan of it was used.'
+        ? 'Because the province drew on central support or drew central attention, the group examined the books closely.'
         : null,
       s.flags.fiscalCriticism
         ? 'It also criticises the province’s borrowing: more was owed than the province could comfortably repay.'
@@ -837,13 +845,15 @@ const beijingReview = {
             ? 'The inspectors compared your winter report with the county registers. The figures did not match. Beijing’s decision comes within the week: you are relieved of your post, and your conduct is referred for review.'
             : 'Lin Wei’s resignation has reached Beijing, and with it the matters he could not get you to address. The group finds those matters unresolved. Beijing’s decision comes within the week: you are relieved of your post, and a successor is named.';
         case 'censure':
-          return 'Its report criticises the province’s handling of several matters left unresolved. Your authority within the province suffers.' + (s.charges.some(isWrong) ? ' The group gives you one chance to put one of them right in front of it.' : '');
+          return 'Its report criticises the province’s handling of several failures left on the record. Your authority within the province suffers.' + (wrongs > 0 ? ' The group gives you one chance to put an unresolved matter right in front of it.' : '');
         case 'warning':
           return s.ministerPresent
-            ? 'Its report records one unresolved matter and a note of criticism. Your standing in the provincial administration takes a small hit.'
+            ? 'Its report records a note of criticism on the year’s administration. Your standing in the province takes a small hit.'
             : 'Lin Wei’s resignation prompted the review. The group found the matters he raised had been settled before it arrived. It notes his departure and the unease it caused in the provincial administration.';
         default:
-          return 'Its report contains no criticism of how the people in your care were treated. It also contains no reward. Nothing attaches to it for conduct. The record is only a record.';
+          return wrongs > 0
+            ? 'Its report finds the province’s accounts and administration in order. It raises none of the matters Vice-Governor Lin placed before you. As far as Beijing is concerned, the year is closed.'
+            : 'Its report contains no criticism of how the people in your care were treated. It also contains no reward. Nothing attaches to it for conduct. The record is only a record.';
       }
     })();
     return paras(intro, body, ...extras);
@@ -875,8 +885,15 @@ const beijingReview = {
       : [
           {
             id: 'continue',
-            label: s.flags.verdict === 'removed' ? 'Hand over your office' : 'Continue',
-            outcomes: [{ effects: [], text: '' }],
+            label: s.flags.verdict === 'removed' ? 'Hand over your office' : 'Receive Beijing’s decision',
+            outcomes: [
+              {
+                effects: [],
+                text: s.flags.verdict === 'removed'
+                  ? 'You sign the handover papers before evening. The inspection group leaves for Beijing the following morning.'
+                  : 'The inspection group seals its report and returns to Beijing. Within the month, word arrives of your next posting.',
+              },
+            ],
           },
         ],
 };

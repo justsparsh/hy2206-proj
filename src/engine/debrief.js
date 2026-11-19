@@ -41,10 +41,6 @@ export function buildDebrief(state) {
       if (c.status === 'corrected') outcome = 'You heeded it, scaled relief back, and paid for it in welfare.';
       else if (state.flags.warningCalledIn) outcome = 'You kept spending, and the Treasury did run dry. Beijing’s finance bureau noted it.';
       else outcome = 'You kept spending, and the money held. Lin’s warning did not come true.';
-    } else     if (def.kind === 'concern' && c.status !== 'open') {
-      if (c.status === 'corrected') outcome = 'You heeded it, scaled relief back, and paid for it in welfare.';
-      else if (state.flags.warningCalledIn) outcome = 'You kept spending, and the Treasury did run dry. Beijing’s finance bureau noted it.';
-      else outcome = 'You kept spending, and the money held. Lin’s warning did not come true.';
     } else if (c.status === 'corrected') outcome = 'Corrected.';
     else if (c.status === 'defended') {
       outcome = c.outcomeDependentDefence
@@ -72,11 +68,19 @@ export function buildDebrief(state) {
     note: h.note,
   }));
 
+  const careerSuccess = ending.career === 'promoted' || ending.career === 'retained';
+  const measuresNote =
+    careerSuccess && ending.ethical === 'compromised'
+      ? 'The two verdicts disagreed. Beijing rewarded the province’s results, while Mencius’s standard left wrongs on your record. Keeping the books in order is not the same as treating the people well.'
+      : !careerSuccess && ending.ethical === 'clear'
+        ? 'The two verdicts disagreed. You left no wrong unrepaired by Mencius’s standard, and Beijing still judged the province’s accounts or condition wanting. Good conduct does not guarantee a career.'
+        : MEASURES;
+
   return {
     seed: state.seed,
     political: state.flags.collapsed ? CAREER.collapsed : state.flags.insolvent ? CAREER.insolvent : CAREER[ending.career],
     career: ending.career,
-    measures: MEASURES,
+    measures: measuresNote,
     ethical:
       ending.ethical === 'clear'
         ? 'No wrong was left unrepaired.'
@@ -89,28 +93,23 @@ export function buildDebrief(state) {
     sources: SOURCES,
     ideas: [
       {
-        title: 'Rule was conditional',
-        body:
-          'In the tradition Mencius draws on, a ruler’s standing depended on how he treated the people. He tells King Xuan that a ruler who despoils humaneness and rightness is a “mere fellow” (1B8, Columbia University excerpt). This game moves that idea into a modern setting as an exercise. It is not a claim about how the idea works in China today.',
-      },
-      {
         title: 'Livelihood came first',
         body:
-          'For Mencius, securing people’s food and safety was a duty of government, and punishing people driven into wrongdoing by want was a trap (1A7). That is the logic behind the charge of punishing villages the relief had not reached.',
+          'For Mencius, securing people’s food, safety, and stable livelihood was the ruler’s first obligation (1A7, 3A3). Punishing people driven into wrongdoing by want is a trap, and a shortcut that works on paper — holding the reserve, taxing empty barns, staging a model village — does not cease to be a wrong.',
       },
       {
-        title: 'The system relied on people who would say unwelcome things',
+        title: 'Rule relied on officials who would say unwelcome things',
         body:
-          'Mencius says a minister who finds the ruler at fault should remonstrate, and if the ruler repeatedly does not listen, should leave or, if close enough to the ruler, remove him (5B9). In the game, Lin Wei resigns and Beijing can remove you. The numbers are our design, not Mencius’s. Whether officials in practice could say unwelcome things is a separate historical question this game cannot answer.',
+          'Mencius says a minister who finds the ruler at fault should remonstrate, and if the ruler repeatedly does not listen, should leave or, if close enough to the ruler, remove him (5B9). In the game, Lin Wei raises specific wrongs, resigns if ignored three times, and leaves you blind to risks. The thresholds are game design, not Mencius’s.',
       },
       {
-        title: 'Ideals were hard to practise',
+        title: 'Performance and moral legitimacy can disagree',
         body:
-          'Mencius’s standard was demanding, and rulers faced limited resources and uncertain information. In the game, a shortcut can work for a while, as holding the reserve can. The text, and this game, do not treat success as the measure of a wrong.',
+          'In the tradition Mencius draws on, a ruler who despoils humaneness and rightness becomes a “mere fellow” (1B8). Modern commentary often frames legitimacy through economic performance and stability instead. Here Beijing judges the province’s accounts and condition while Mencius judges how the people were treated — and the two verdicts can split.',
       },
     ],
     designNotes: [
-      'The thresholds (three ignored remonstrances before Lin resigns, Beijing’s review at the end) are game design, not claims about Mencius.',
+      'The thresholds (three ignored remonstrances before Lin resigns, Beijing’s inspection and career ladder at the end) are game design, not claims about Mencius.',
       'Whether a choice opens a charge never depends on luck. It depends on what you chose and what you had been told.',
       'Only the charge about punishing the unreached is directly supported by a passage. The others are inferences or adaptations, as labelled above.',
     ],
