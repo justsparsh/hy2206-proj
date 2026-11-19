@@ -31,7 +31,7 @@ const harvestFailure = {
       risk: 'Heavy logistical push: a landslide or washed-out bridge on the mountain road could still leave three villages unreached.',
       outcomes: [
         {
-          chance: (s) => (s.meters.capacity >= 60 ? 0.15 : 0.35),
+          chance: 0.3,
           effects: [m('treasury', -26), m('welfare', 6), m('capacity', -5), flag('reliefOn'), flag('reservesSpent'), flag('uncovered', 3), fact('unreachedKnown')],
           text: 'Trucks leave the provincial depot by noon, and seventeen villages receive grain before week’s end. A washed-out bridge blocks the high pass, leaving three mountain villages still cut off; Lin puts their names on your desk.',
         },
@@ -147,12 +147,12 @@ const depotThefts = {
     {
       id: 'pursue-organisers',
       label: 'Pardon petty theft and go after the organisers',
-      requires: { meter: 'capacity', op: '>=', value: 40 },
-      lockedReason: 'Investigators are stretched too thin (needs Capacity 40).',
-      risk: (s) => (s.meters.capacity >= 60 ? 'Likely to succeed.' : 'Even odds of success.'),
+      requires: { meter: 'capacity', op: '>=', value: 35 },
+      lockedReason: 'Investigators are stretched too thin (needs Capacity 35).',
+      risk: (s) => (s.meters.capacity >= 40 ? 'Likely to succeed.' : 'Even odds of success.'),
       outcomes: [
         {
-          chance: (s) => (s.meters.capacity >= 60 ? 0.8 : 0.6),
+          chance: (s) => (s.meters.capacity >= 40 ? 0.8 : 0.6),
           effects: [m('treasury', -5), m('welfare', 3)],
           text: 'Investigators arrest a handful of resellers. Villagers who took grain for their families are left alone, though the villages are still without relief.',
         },
@@ -197,6 +197,8 @@ const depotSkimming = {
     {
       id: 'audit-chain',
       label: 'Audit the supply chain end to end',
+      requires: { meter: 'capacity', op: '>=', value: 30 },
+      lockedReason: 'Your offices are too stretched to run a province-wide audit (needs Capacity 30).',
       risk: 'Thorough, expensive, and slows down your offices.',
       outcomes: [
         {
@@ -250,6 +252,8 @@ const photograph = {
     {
       id: 'extend-all',
       label: 'Extend relief to every unreached village now',
+      requires: { meter: 'capacity', op: '>=', value: 30 },
+      lockedReason: 'County offices are too stretched for an immediate push over the pass (needs Capacity 30).',
       outcomes: [
         {
           effects: [m('treasury', -12), m('capacity', -5), m('welfare', 8), flag('uncovered', 0)],
@@ -316,23 +320,23 @@ const contract = {
     {
       id: 'award-kin',
       label: 'Award the contract to Tianbao Logistics',
-      risk: 'Trucks are loaded and drivers are on standby, so it is fast and takes work off your offices. The firm has been late before.',
+      risk: 'Trucks are loaded and Tianbao’s dispatchers take a major load off your offices. The firm has been late before.',
       charges: [{ id: 'favouredKin' }],
       outcomes: [
         {
           chance: 0.65,
-          effects: [m('treasury', -6), m('welfare', 6), m('capacity', 2), flag('kinContract')],
-          text: 'Trucks are moving within two days, with Tianbao’s own dispatchers running the routes. Your offices are relieved of the work. Han Jie sends flowers to your office.',
+          effects: [m('treasury', -6), m('welfare', 6), m('capacity', 4), flag('kinContract')],
+          text: 'Trucks are moving within two days, with Tianbao’s own dispatchers running the routes. Your offices are noticeably relieved of the strain. Han Jie sends flowers to your office.',
         },
         {
           effects: [
             m('treasury', -6),
             m('welfare', 6),
-            m('capacity', 2),
+            m('capacity', 4),
             flag('kinContract'),
             later(2, [m('welfare', -6)], 'Tianbao’s trucks arrive late. A local newspaper has the story.'),
           ],
-          text: 'Trucks are moving within two days. Han Jie sends flowers to your office.',
+          text: 'Trucks are moving within two days, taking the routing work off your staff. Han Jie sends flowers to your office.',
         },
       ],
     },
@@ -341,8 +345,8 @@ const contract = {
       label: 'Open a public tender',
       outcomes: [
         {
-          effects: [m('treasury', -3), m('capacity', -3), later(2, [m('welfare', 4)], 'The tendered contract begins delivering.')],
-          text: 'It takes longer. Nobody can say you picked the winner.',
+          effects: [m('treasury', -3), m('capacity', -5), later(2, [m('welfare', 4)], 'The tendered contract begins delivering.')],
+          text: 'Running a clean tender takes weeks of procurement staff time. Nobody can say you picked the winner.',
         },
       ],
     },
@@ -351,8 +355,8 @@ const contract = {
       label: 'Use the province’s own transport units',
       outcomes: [
         {
-          effects: [m('treasury', -2), m('capacity', -5), m('welfare', 2)],
-          text: 'It strains the units, but it is done in-house and on time.',
+          effects: [m('treasury', -2), m('capacity', -7), m('welfare', 2)],
+          text: 'It strains your provincial units hard, pulling drivers and managers off everything else, but it is done in-house and on time.',
         },
       ],
     },
@@ -390,8 +394,8 @@ const hoarders = {
     {
       id: 'inspect-requisition',
       label: 'Inspect warehouses and buy the stock at the regulated price',
-      requires: { meter: 'capacity', op: '>=', value: 40 },
-      lockedReason: 'The regulators are stretched too thin (needs Capacity 40).',
+      requires: { meter: 'capacity', op: '>=', value: 35 },
+      lockedReason: 'The regulators are stretched too thin (needs Capacity 35).',
       outcomes: [
         {
           effects: [m('treasury', -8), m('capacity', -6), m('welfare', 6)],

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { createGame, describe, choose, proceed } from '../engine/game.js';
 import { buildDebrief } from '../engine/debrief.js';
-import { CHARGES, FACTS } from '../content/index.js';
-import { BEIJING_HELP_LIMIT, season, weeklyTreasury } from '../content/helpers.js';
+import { CHARGES } from '../content/index.js';
+import { BEIJING_HELP_LIMIT, season, weeklyEffects } from '../content/helpers.js';
 
 const LABELS = { treasury: 'Treasury', welfare: 'Welfare', capacity: 'State capacity' };
+const SHORT = { treasury: 'Treasury', welfare: 'Welfare', capacity: 'Capacity' };
 
 function Meters({ meters }) {
   const bars = [
@@ -31,18 +32,42 @@ const signed = (n) => `${n > 0 ? '+' : '−'}${Math.abs(n)}`;
 const inWeeks = (n) => (n <= 1 ? 'next week' : `in ${n} weeks`);
 
 function Commitments({ state }) {
-  const weekly = weeklyTreasury(state);
+  const effects = weeklyEffects(state);
+  const net = { treasury: 0, welfare: 0, capacity: 0 };
+  for (const item of effects) {
+    for (const [k, v] of Object.entries(item.deltas)) net[k] += v;
+  }
+  const netEntries = Object.entries(net).filter(([, v]) => v !== 0);
+
   return (
     <section>
       <h3>Commitments</h3>
-      <p className="muted small">Treasury each week, before any decision you make:</p>
-      {weekly.items.length === 0 ? <p className="muted">No regular weekly change.</p> : (
-        <ul className="plain">
-          {weekly.items.map((i) => (
-            <li key={i.label}><span>{i.label}</span> <strong className={i.delta < 0 ? 'negative' : 'positive'}>{signed(i.delta)}</strong></li>
+      <p className="muted small">Active weekly effects (applied next week before you act):</p>
+      {effects.length === 0 ? <p className="muted">No regular weekly change.</p> : (
+        <ul className="plain weekly-list">
+          {effects.map((item) => (
+            <li key={item.label} className={item.warn ? 'weekly-warn' : ''}>
+              <span className="weekly-label">{item.label}</span>
+              <span className="weekly-deltas">
+                {Object.entries(item.deltas).map(([k, v]) => (
+                  <strong key={k} className={v < 0 ? 'negative' : 'positive'}>
+                    {SHORT[k]} {signed(v)}
+                  </strong>
+                ))}
+              </span>
+            </li>
           ))}
-          {weekly.items.length > 1 && (
-            <li className="net"><span>Net</span> <strong className={weekly.net < 0 ? 'negative' : 'positive'}>{signed(weekly.net)} a week</strong></li>
+          {effects.length > 1 && netEntries.length > 0 && (
+            <li className="net">
+              <span className="weekly-label">Net next week</span>
+              <span className="weekly-deltas">
+                {netEntries.map(([k, v]) => (
+                  <strong key={k} className={v < 0 ? 'negative' : 'positive'}>
+                    {SHORT[k]} {signed(v)}
+                  </strong>
+                ))}
+              </span>
+            </li>
           )}
         </ul>
       )}
@@ -58,19 +83,17 @@ function Sidebar({ state }) {
   const raised = state.charges.filter((c) => c.raised && c.status === 'open');
   return (
     <aside className="sidebar">
-      <section>
-        <h3>What you have been told</h3>
-        {state.facts.length === 0 ? <p className="muted">Nothing yet.</p> : (
-          <ul>{state.facts.map((f) => <li key={f}>{FACTS[f]}</li>)}</ul>
-        )}
-      </section>
+      <Commitments state={state} />
       <section>
         <h3>Beijing's patience</h3>
-        {(state.flags.beijingAsks ?? 0) === 0 ? <p className="muted">You have not yet asked Beijing for help.</p> : (
+        {(state.flags.beijingAsks ?? 0) === 0 ? (
+          <p className="muted">You have not yet asked Beijing for help. It will step in at most once.</p>
+        ) : (state.flags.beijingAsks ?? 0) >= BEIJING_HELP_LIMIT ? (
+          <p>You have already asked Beijing for help. It will not step in again.</p>
+        ) : (
           <p>You have asked Beijing for help {state.flags.beijingAsks} time{state.flags.beijingAsks === 1 ? '' : 's'}. It will answer {BEIJING_HELP_LIMIT} in all.</p>
         )}
       </section>
-      <Commitments state={state} />
       <section>
         <h3>Matters raised and unresolved</h3>
         {raised.length === 0 ? <p className="muted">None.</p> : (

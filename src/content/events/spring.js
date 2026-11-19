@@ -89,6 +89,8 @@ const seedGrain = {
           {
             id: 'seed-credit',
             label: 'Provide seed on credit through the county cooperatives',
+            requires: { meter: 'capacity', op: '>=', value: 25 },
+            lockedReason: 'County offices are too stretched to administer cooperative credit (needs Capacity 25).',
             outcomes: [{ effects: [m('treasury', -5), m('capacity', -4), later(3, [m('welfare', 3)], 'The cooperatives have seed in the ground.')], text: 'It is a lot of paperwork, and it works.' }],
           },
         ]

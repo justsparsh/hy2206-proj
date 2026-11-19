@@ -3,7 +3,7 @@ import { createGame, describe, choose, proceed } from './game.js';
 import { evaluate } from './conditions.js';
 import { buildDebrief } from './debrief.js';
 import { EVENTS, CHARGES, FACTS } from '../content/index.js';
-import { season, weeklyTreasury } from '../content/helpers.js';
+import { season, weeklyTreasury, weeklyEffects } from '../content/helpers.js';
 
 const available = (view) => view.choices.filter((c) => !c.locked);
 
@@ -228,6 +228,28 @@ suite('the calendar and weekly accounts shown to the player match the rules', ()
 
   it('shows no regular change when relief is off and it is still winter', () => {
     expect(weeklyTreasury(stateAt(3)).items).toEqual([]);
+  });
+
+  it('low state capacity drains Treasury below 25 and both Treasury and Welfare below 12, and weeklyEffects shows it', () => {
+    const step = (capacity) => {
+      const s = stateAt(4, { reliefOn: false });
+      s.meters = { treasury: 40, welfare: 60, capacity };
+      const preview = weeklyEffects(s);
+      s.phase = 'result';
+      s.current = { kind: 'event', eventId: 'x' };
+      s.result = { title: '', text: '', deltas: {} };
+      return { preview, next: proceed(s) };
+    };
+    const healthy = step(40);
+    const overstretched = step(20);
+    const broken = step(10);
+
+    expect(overstretched.preview.some((i) => /Overstretched/.test(i.label))).toBe(true);
+    expect(overstretched.next.meters.treasury).toBe(healthy.next.meters.treasury - 2);
+
+    expect(broken.preview.some((i) => /Administrative breakdown/.test(i.label))).toBe(true);
+    expect(broken.next.meters.treasury).toBe(healthy.next.meters.treasury - 2);
+    expect(broken.next.meters.welfare).toBe(healthy.next.meters.welfare - 2);
   });
 });
 
@@ -469,17 +491,17 @@ suite('the central flood grant is not free money', () => {
   });
 
   it('still counts against Beijing’s patience and says so when it is used up', () => {
-    const view = describe(atFlood(true, { beijingAsks: 2 }));
+    const view = describe(atFlood(true, { beijingAsks: 1 }));
     const g = view.choices.find((c) => c.id === 'request-grant');
     expect(g.locked).toBe(true);
-    expect(g.lockedReason).toMatch(/already helped twice/);
+    expect(g.lockedReason).toMatch(/already stepped in once/);
   });
 });
 
 suite('Beijing’s patience is limited', () => {
   const BEIJING_CHOICES = new Set(['appeal-outside', 'ask-beijing-loan', 'ask-outside', 'request-grant', 'ask-bailout']);
 
-  it('no play style can draw on Beijing more than twice', () => {
+  it('no play style can draw on Beijing more than once', () => {
     for (let seed = 1; seed <= 300; seed++) {
       // Always take Beijing's money when it is on offer, otherwise pick at random.
       let t = seed * 40503;
@@ -492,21 +514,21 @@ suite('Beijing’s patience is limited', () => {
         return opts[Math.floor(next() * opts.length)].id;
       });
       const taken = s.history.filter((h) => BEIJING_CHOICES.has(h.choiceId)).length;
-      expect(taken, `seed ${seed}`).toBeLessThanOrEqual(2);
-      expect(s.flags.beijingAsks ?? 0).toBeLessThanOrEqual(2);
+      expect(taken, `seed ${seed}`).toBeLessThanOrEqual(1);
+      expect(s.flags.beijingAsks ?? 0).toBeLessThanOrEqual(1);
     }
   });
 
-  it('once Beijing has helped twice, its help is locked with a reason', () => {
+  it('once Beijing has helped once, its help is locked with a reason', () => {
     let tested = 0;
     for (let seed = 1; seed <= 200 && tested < 3; seed++) {
       const s = play(seed, undefined, (st) => st.phase === 'event' && st.current?.kind === 'event' && st.current.eventId === 'cold-wave');
       if (s.phase === 'ended') continue;
-      s.flags.beijingAsks = 2;
+      s.flags.beijingAsks = 1;
       const view = describe(s);
       const help = view.choices.find((c) => c.id === 'ask-outside');
       expect(help.locked).toBe(true);
-      expect(help.lockedReason).toMatch(/already helped|remember/);
+      expect(help.lockedReason).toMatch(/already helped|already stepped in|remember/);
       tested++;
     }
     expect(tested).toBeGreaterThan(0);
