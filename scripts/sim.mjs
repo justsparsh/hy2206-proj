@@ -3,7 +3,7 @@
 import { createGame, describe, choose, proceed } from '../src/engine/game.js';
 
 const WRONGS = new Set([
-  'hold-reserve', 'punish', 'visit-hongyan', 'say-nothing', 'award-kin', 'let-it-run', 'cut-rations', 'divert-budgets', 'report-low', 'crush-protest',
+  'hold-reserve', 'punish', 'visit-hongyan', 'say-nothing', 'award-kin', 'let-it-run', 'cut-rations', 'divert-budgets', 'report-low', 'crush-protest', 'collect-full', 'stage-visit',
 ]);
 
 const policies = {
@@ -53,6 +53,34 @@ const policies = {
     if (missed) return missed.id;
     const clean = opts.filter((c) => !WRONGS.has(c.id));
     return (clean.length ? clean : opts).sort((a, b) => gain(b) - gain(a))[0].id;
+  },
+  // Plays like a savvy, career-focused governor: prevents famine collapse so Beijing's scorecard looks strong,
+  // exploits high-upside pragmatic shortcuts (kin contract, full taxes, showcase village, industrial park),
+  // and stops short of pushing Lin Wei into resigning.
+  pragmatist: (view, s) => {
+    const opts = view.choices.filter((c) => !c.locked);
+    const has = (id) => opts.some((c) => c.id === id);
+    if (view.kind === 'remonstrance') {
+      return s.remonstrances < 2 ? 'defend' : 'correct';
+    }
+    if (s.turn === 1 && has('targeted-relief')) return 'targeted-relief';
+    // Stop village bleed early via cheap extension so Welfare stays above 42 while keeping the grain reserve intact.
+    if (s.flags.uncovered > 0) {
+      for (const id of ['delegate-extend', 'suspend-and-extend', 'extend-all']) if (has(id)) return id;
+    }
+    for (const id of [
+      'award-kin', 'fund-park', 'stage-visit', 'collect-full', 'draw-reserve', 'flood-reserve',
+      'free-seed', 'sell-seed', 'evacuate', 'emergency-aid', 'rebuild-homes', 'subsidised-loans',
+      'price-ceiling', 'send-inspectors', 'defer-affected', 'special-bonds', 'cut-rations',
+      'strengthen-admin', 'visit-counties',
+    ]) {
+      if (id === 'collect-full' && s.meters.welfare < 50) continue;
+      if (id === 'stage-visit' && s.meters.welfare < 48) continue;
+      if (id === 'cut-rations' && s.meters.welfare < 52) continue;
+      if (id === 'fund-park' && s.meters.welfare < 48) continue;
+      if (has(id)) return id;
+    }
+    return opts[0].id;
   },
   random: (view, s, rnd) => {
     const opts = view.choices.filter((c) => !c.locked);

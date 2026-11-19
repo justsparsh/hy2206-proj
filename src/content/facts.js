@@ -8,4 +8,8 @@ export const FACTS = {
   unrestCause: 'Public security reports that most people in the crowds are from places where the winter has been worst, and few have any record of trouble.',
   kinFirmRecord:
     'Tianbao Logistics, run by your brother-in-law, bids 20% above the going rate and has delivered late on two provincial contracts.',
+  taxBurdenKnown:
+    'County offices report that farmers in the drought-hit counties have no surplus left; collecting the full tax assessment will force families to sell tools or seed.',
+  stagingCostKnown:
+    'Preparing a showcase route for the visiting central official will divert relief funds and staff from poorer counties.',
 };

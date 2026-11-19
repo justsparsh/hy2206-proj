@@ -104,25 +104,24 @@ function Intro({ onStart }) {
         <cite>Book of Documents, quoted in Mencius 5A5</cite>
       </blockquote>
       <p>
-        You are the governor of a province in China. A drought has ruined the autumn harvest in the hills of the north.
-        Over the coming weeks you will decide how the province responds, with limited money, limited administrative
-        capacity, and uncertain information.
+        You are the governor of a province in China. A drought has ruined the autumn harvest in the northern hills,
+        and winter is weeks away. Over the coming months you must carry the province through to spring with a tight
+        Treasury, stretched county offices, and incomplete reports.
       </p>
       <p>
-        <strong>You are being judged by Mencius.</strong> This game takes a standard of good rule from the Confucian
-        philosopher Mencius (4th century BCE): that rulers owe the people their livelihood, that punishing people driven to
-        wrongdoing by want is a wrong, and that officials should say unwelcome things to a ruler who is going astray.
+        Across the desk sits your vice-governor, <strong>Lin Wei</strong> — a seasoned administrator and a devoted
+        student of the Confucian philosopher <strong>Mencius</strong>. Lin holds that a government owes the people their
+        livelihood above all else, that punishing people driven into wrongdoing by want is a trap, and that an official
+        who cannot speak unwelcome truths should leave office. Whenever he believes you have crossed that line, he will
+        say so to your face. Ignore him often enough, and he will resign.
       </p>
       <p>
-        There is no morality score. Your vice-governor, Lin Wei, will raise specific matters with you. If you keep ignoring
-        him, he will resign, and Beijing may send an inspection group. Good luck is separate from good conduct, and a shortcut
-        can work for a while. The term lasts through the winter and into the spring, and at the end Beijing decides where
-        you go next: promotion, a quiet sidelining, demotion, or dismissal. That decision rests on the province’s accounts
-        and condition, not on Mencius.
+        Above you both sits <strong>Beijing</strong>. When spring closes, the centre will judge the province’s accounts,
+        stability, and results — not Lin’s philosophy — and decide whether you earn a promotion, a quiet sidelining,
+        demotion, or dismissal.
       </p>
       <p className="muted">
-        This is a fictional scenario for a class on the history of China. It does not depict real officials and makes no claim about how
-        Mencius’s ideas work in China today.
+        A fictional scenario. It does not depict real officials or make claims about modern Chinese politics.
       </p>
       <div className="start-row">
         <button className="primary" onClick={() => onStart(seed === '' ? undefined : Number(seed))}>Begin</button>
@@ -200,56 +199,144 @@ function Play({ state, setState }) {
   );
 }
 
-function Ended({ state, onRestart }) {
+function Ended({ state, onRestart, onReplaySeed }) {
   const d = buildDebrief(state);
+  const [tab, setTab] = useState('record');
+
   return (
     <main className="page debrief">
-      <h1>The end of the term</h1>
-      <p className="verdict">{d.political}</p>
-      <p>{d.summary}</p>
-      <Meters meters={d.meters} />
-      <p>{d.ethical}</p>
-      <p className="muted">{d.measures}</p>
-      {d.settled.length > 0 && (
-        <p className="muted">Still owed when your term ended, and settled against the final accounts: {d.settled.join('; ')}.</p>
+      <div className="ending-hero">
+        <p className="ending-kicker">
+          {d.endedEarly ? `Term cut short · Turn ${d.turnsPlayed} of ${d.maxTurns}` : `End of term · ${d.maxTurns} turns`}
+        </p>
+        <h1>{d.headline}</h1>
+      </div>
+
+      <section className="verdicts" aria-label="Two verdicts">
+        <div className={`verdict-card tone-${d.careerTone}`}>
+          <div className="verdict-head">
+            <span className="verdict-judge">Beijing’s Verdict</span>
+            <span className={`stamp ${d.careerTone}`}>{d.careerBadge}</span>
+          </div>
+          <p>{d.political}</p>
+          <div className="verdict-meters">
+            <Meters meters={d.meters} />
+          </div>
+          {d.settled.length > 0 && (
+            <p className="muted small">Settled against final accounts: {d.settled.join('; ')}.</p>
+          )}
+        </div>
+
+        <div className={`verdict-card tone-${d.ethicalTone}`}>
+          <div className="verdict-head">
+            <span className="verdict-judge">Mencius’s Verdict</span>
+            <span className={`stamp ${d.ethicalTone}`}>{d.ethicalBadge}</span>
+          </div>
+          <p>{d.menciusVerdict}</p>
+          <p className="lin-epilogue">{d.linEpilogue}</p>
+        </div>
+      </section>
+
+      <div className={`split-banner ${d.diverged ? 'diverged' : ''}`}>
+        <p>{d.measures}</p>
+      </div>
+
+      <div className="ending-actions">
+        <div className="ending-buttons">
+          <button className="primary" onClick={onRestart}>Play again</button>
+          <button className="secondary" onClick={() => onReplaySeed(d.seed)}>Replay seed #{d.seed}</button>
+        </div>
+        <p className="muted small">{d.replayHint}</p>
+      </div>
+
+      <nav className="tabs" role="tablist" aria-label="Post-term details">
+        <button
+          role="tab"
+          aria-selected={tab === 'record'}
+          className={tab === 'record' ? 'active' : ''}
+          onClick={() => setTab('record')}
+        >
+          Your Record {d.ledger.length > 0 && <span className="tab-count">{d.ledger.length}</span>}
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'chronicle'}
+          className={tab === 'chronicle' ? 'active' : ''}
+          onClick={() => setTab('chronicle')}
+        >
+          Chronicle <span className="tab-count">{d.timeline.length}</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'notes'}
+          className={tab === 'notes' ? 'active' : ''}
+          onClick={() => setTab('notes')}
+        >
+          Notes &amp; Sources
+        </button>
+      </nav>
+
+      {tab === 'record' && (
+        <section className="tab-panel">
+          {d.ledger.length === 0 ? (
+            <div className="empty-record">
+              <p>Vice-Governor Lin never found cause to bring a charge against you.</p>
+            </div>
+          ) : (
+            d.ledger.map((l, i) => (
+              <article className={`record-card status-${l.statusBadge.toLowerCase()}`} key={`${l.id}-${i}`}>
+                <div className="record-head">
+                  <h3>{l.label}</h3>
+                  <span className={`tag status-${l.statusBadge.toLowerCase()}`}>{l.statusBadge}</span>
+                </div>
+                <p>{l.opened}</p>
+                <p className="record-outcome">{l.outcome}</p>
+                <p className="record-mencius">{l.menciusLine}</p>
+              </article>
+            ))
+          )}
+        </section>
       )}
 
-      <h2>What happened</h2>
-      <ol className="timeline">
-        {d.timeline.map((t, i) => (
-          <li key={i}>
-            <strong>Turn {t.turn}: {t.title}.</strong> {t.choice}.
-            {t.outcome && <span className="muted"> {t.outcome.replace(/\n\n/g, ' ')}</span>}
-            {t.note && <div className="note">{t.note}</div>}
-          </li>
-        ))}
-      </ol>
+      {tab === 'chronicle' && (
+        <section className="tab-panel">
+          <ol className="timeline">
+            {d.timeline.map((t, i) => (
+              <li key={i}>
+                <strong>Turn {t.turn}: {t.title}.</strong> {t.choice}.
+                {t.outcome && <span className="muted"> {t.outcome.replace(/\n\n/g, ' ')}</span>}
+                {t.note && <div className="note">{t.note}</div>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
-      <h2>What Lin raised with you</h2>
-      {d.ledger.length === 0 ? <p>Nothing. Lin never found cause to raise a matter.</p> : d.ledger.map((l, i) => (
-        <div className="ledger" key={`${l.id}-${i}`}>
-          <h3>{l.label} <span className="tag">{l.kind === 'concern' ? 'A concern, not a wrong' : 'A wrong'}</span></h3>
-          <p>{l.opened}</p>
-          <p><strong>{l.outcome}</strong></p>
-          <p className="source"><strong>{l.source.passage}</strong> · {l.sourceLabel}. {l.source.note}</p>
-        </div>
-      ))}
+      {tab === 'notes' && (
+        <section className="tab-panel notes-panel">
+          <h2>Ideas behind the game</h2>
+          {d.ideas.map((i) => (
+            <div key={i.title}><h3>{i.title}</h3><p>{i.body}</p></div>
+          ))}
 
-      <h2>What this game is drawing on</h2>
-      {d.ideas.map((i) => (
-        <div key={i.title}><h3>{i.title}</h3><p>{i.body}</p></div>
-      ))}
+          {d.ledger.length > 0 && (
+            <>
+              <h2>Textual grounding for your record</h2>
+              {d.ledger.map((l, i) => (
+                <div className="ledger" key={`src-${l.id}-${i}`}>
+                  <h3>{l.label}</h3>
+                  <p className="source"><strong>{l.source.passage}.</strong> {l.source.note}</p>
+                </div>
+              ))}
+            </>
+          )}
 
-      <h2>What is game design, not Mencius</h2>
-      <ul>{d.designNotes.map((n) => <li key={n}>{n}</li>)}</ul>
-
-      <h2>Passages used</h2>
-      <ul>{d.sources.map((s) => (
-        <li key={s.passage}><strong>{s.passage}.</strong> {s.summary} <span className="muted">{s.check}</span></li>
-      ))}</ul>
-
-      <p className="muted">Seed: {d.seed}</p>
-      <button className="primary" onClick={onRestart}>Play again</button>
+          <h2>Passages cited</h2>
+          <ul>{d.sources.map((s) => (
+            <li key={s.passage}><strong>{s.passage}.</strong> {s.summary} <span className="muted">{s.check}</span></li>
+          ))}</ul>
+        </section>
+      )}
     </main>
   );
 }
@@ -262,7 +349,13 @@ export default function App() {
     return <Intro onStart={(seed) => { setState(createGame(seed)); setStarted(true); }} />;
   }
   if (state.status === 'ended') {
-    return <Ended state={state} onRestart={() => { setStarted(false); setState(null); }} />;
+    return (
+      <Ended
+        state={state}
+        onRestart={() => { setStarted(false); setState(null); }}
+        onReplaySeed={(seed) => { setState(createGame(seed)); }}
+      />
+    );
   }
   return (
     <div className="layout">

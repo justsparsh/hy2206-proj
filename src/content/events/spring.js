@@ -1,7 +1,6 @@
 import { m, flag, later, beijingWillHelp, askedBeijing, BEIJING_HELP_LIMIT, BEIJING_REFUSES } from '../helpers.js';
-import { CHARGES } from '../charges.js';
 
-const isWrong = (c) => c.status === 'open' && CHARGES[c.id].kind !== 'concern';
+const isWrong = (c) => c.status === 'open';
 
 const paras = (...p) => p.join('\n\n');
 const deaths = (s) => (s.flags.winterLoss ?? 0) * 6;
@@ -25,10 +24,15 @@ const thaw = {
     {
       id: 'report-true',
       label: 'Send Beijing the full count',
+      risk: (s) => (s.flags.winterLoss >= 3 ? 'A heavy toll will draw Beijing’s scrutiny and hurt your standing.' : undefined),
       outcomes: [
         {
-          effects: (s) => [m('capacity', -3), ...(s.flags.winterLoss >= 4 ? [flag('beijingWatching')] : [])],
-          text: 'Beijing receives the figure without comment. Your phone does not ring that week, which tells you something.',
+          effects: (s) => [
+            m('capacity', s.flags.winterLoss >= 3 ? -6 : -3),
+            ...(s.flags.winterLoss >= 4 ? [flag('beijingWatching')] : []),
+            ...(s.flags.winterLoss >= 5 ? [{ type: 'flagAdd', key: 'beijingConcerns', delta: 1 }] : []),
+          ],
+          text: 'Beijing receives the figure without comment. Your phone does not ring that week, which tells you everything you need to know.',
         },
       ],
     },
@@ -36,11 +40,11 @@ const thaw = {
       id: 'report-low',
       label: 'Send a lower figure, citing late registrations',
       charges: [{ id: 'concealedLosses' }],
-      risk: 'Beijing may check the county registers.',
+      risk: 'Protects your standing now; Beijing has a two-in-five chance of checking the county registers at the inspection.',
       outcomes: [
         {
-          effects: [flag('lossesUnderstated')],
-          text: 'The report goes out with a lower figure and a note about late registrations. Lin reads the copy and says nothing.',
+          effects: [m('capacity', 2), flag('lossesUnderstated')],
+          text: 'The report goes out with a lower figure and a note about late registrations. Beijing accepts it cleanly. Lin reads the copy and says nothing.',
         },
       ],
     },
@@ -273,7 +277,7 @@ const petitionersReturn = {
     {
       id: 'refer-to-beijing',
       label: 'Refer them to the central petition office in Beijing',
-      outcomes: [{ effects: [m('welfare', -1), flag('beijingWatching')], text: 'They are sent on their way, and Beijing now knows that Lingbei cannot settle its own petitions.' }],
+      outcomes: [{ effects: [m('welfare', -1), flag('beijingWatching')], text: 'They are sent on their way, and Beijing now knows that the province cannot settle its own petitions.' }],
     },
   ],
 };
@@ -412,7 +416,7 @@ const unrest = {
     {
       id: 'negotiate-concessions',
       label: 'Announce emergency relief and wage support, and open talks with their representatives',
-      outcomes: [{ effects: [m('treasury', -10), m('capacity', -2), m('welfare', 6)], text: 'It is expensive, and it works. Within days the crowds are smaller, and the representatives are at the table.' }],
+      outcomes: [{ effects: [m('treasury', -12), m('capacity', -3), m('welfare', 7)], text: 'It is expensive, and it works. Within days the crowds are smaller, and the representatives are at the table.' }],
     },
     {
       id: 'meet-representatives',
@@ -424,8 +428,9 @@ const unrest = {
     {
       id: 'crush-protest',
       label: 'Send in security forces to clear the streets and detain the leaders',
+      risk: 'Restores order and administrative control at no cost to the Treasury.',
       charges: [{ id: 'crushedUnrest' }],
-      outcomes: [{ effects: [m('capacity', -2), m('welfare', -6), flag('orderRestored')], text: 'The streets are cleared by nightfall. Order returns, and so does resentment.' }],
+      outcomes: [{ effects: [m('capacity', 3), m('welfare', -6), flag('orderRestored')], text: 'The streets are cleared by nightfall. Order returns, and so does resentment.' }],
     },
   ],
 };
@@ -459,6 +464,166 @@ const reconstruction = {
   ],
 };
 
+const taxQuota = {
+  id: 'tax-quota',
+  title: 'The Tax Quota',
+  slot: 'pool',
+  window: [4, 11],
+  weight: 4,
+  reveals: ['taxBurdenKnown'],
+  text: () =>
+    paras(
+      'The provincial finance bureau reminds you that county tax assessments are due. Beijing’s annual fiscal review tracks revenue collection closely, and the province’s books are under pressure.',
+      'County offices in the drought-hit north have sent a joint petition asking for remission: farmers have no surplus left, and collecting the full assessment will force families to sell tools or seed.',
+    ),
+  briefing: () =>
+    'Lin: “The northern counties have nothing left to collect, Governor. The Treasury will look better on Friday and the villages will feel it for a year.”',
+  choices: [
+    {
+      id: 'collect-full',
+      label: 'Enforce the full tax assessment across the province to meet the quota',
+      risk: 'Fills the Treasury and satisfies the finance bureau, at a heavy cost to drought-hit families.',
+      charges: [{ id: 'heavyTaxation' }],
+      outcomes: [
+        {
+          effects: [m('treasury', 14), m('capacity', 2), m('welfare', -7), flag('heavyTaxCollected')],
+          text: 'The bureau meets its target on schedule. In the northern counties, tax collectors take what families had kept for spring.',
+        },
+      ],
+    },
+    {
+      id: 'defer-affected',
+      label: 'Exempt the drought-hit northern counties and collect only from the south',
+      outcomes: [
+        {
+          effects: [m('treasury', 5), m('capacity', -2), m('welfare', 2)],
+          text: 'Southern counties grumble at carrying the province’s share, and revenue comes in short of target. In the north, families keep their tools.',
+        },
+      ],
+    },
+    {
+      id: 'broad-remission',
+      label: 'Grant a broad tax remission across the province to ease recovery',
+      outcomes: [
+        {
+          effects: [m('treasury', -4), m('capacity', -2), m('welfare', 5)],
+          text: 'Markets steady and county offices breathe easier. The finance bureau sends a formal note warning that the revenue shortfall will show in your annual file.',
+        },
+      ],
+    },
+  ],
+};
+
+const growthTarget = {
+  id: 'growth-target',
+  title: 'The Growth Target',
+  slot: 'pool',
+  window: [9, 13],
+  weight: 5,
+  text: () =>
+    paras(
+      'With winter ending, the provincial development commission forwards a reminder from Beijing: the province is behind on its annual GDP and investment targets.',
+      'An industrial park expansion outside the provincial capital is ready to break ground — it will lift provincial revenue and impress year-end evaluators. Meanwhile, rural roads, irrigation ditches, and county clinics in the north are still waiting on funds.',
+    ),
+  briefing: () =>
+    'Lin: “Beijing’s scorecard measures concrete and growth rates, Governor. Nobody in a central ministry counts a repaired irrigation ditch in a hill county — until the next drought.”',
+  choices: [
+    {
+      id: 'fund-park',
+      label: 'Fund the industrial park to meet Beijing’s growth target',
+      risk: 'Strengthens your standing and brings revenue (Treasury +12 in 2 turns), while northern villages wait.',
+      outcomes: [
+        {
+          effects: [
+            m('treasury', -6),
+            m('capacity', 6),
+            m('welfare', -3),
+            flag('metGrowthTarget'),
+            later(2, [m('treasury', 12)], 'The industrial park attracts new investment and lifts provincial revenue.'),
+          ],
+          text: 'Ground breaks before the end of the month, and provincial media celebrate the return to growth. Northern county heads quietly shelve their repair requests.',
+        },
+      ],
+    },
+    {
+      id: 'fund-rural',
+      label: 'Put the money into northern roads, irrigation, and rural recovery',
+      outcomes: [
+        {
+          effects: [m('treasury', -10), m('capacity', -2), m('welfare', 7), flag('ruralRebuilt')],
+          text: 'Crews fan out across the hill counties to mend culverts, roads, and clinics. The development commission notes that the province will miss its growth target.',
+        },
+      ],
+    },
+    {
+      id: 'split-funds',
+      label: 'Split the budget between a smaller park phase and urgent rural repairs',
+      outcomes: [
+        {
+          effects: [m('treasury', -8), m('capacity', 1), m('welfare', 2)],
+          text: 'Neither the developers nor the northern counties get all they asked for, and both grumble. Still, the worst roads are mended.',
+        },
+      ],
+    },
+  ],
+};
+
+const inspectionVisit = {
+  id: 'inspection-visit',
+  title: 'The Model Village',
+  slot: 'pool',
+  window: [9, 13],
+  weight: 5,
+  reveals: ['stagingCostKnown'],
+  text: () =>
+    paras(
+      'A senior official from Beijing is touring the region next week to observe post-disaster recovery. Your general office proposes a familiar routine: repave the road into Qinghe village, repaint the clinic, stock the depot full, and route the motorcade past the restored fields.',
+      'Lin’s memo points out that paying for the showcase route will pull staff and recovery money away from poorer counties off the main highway.',
+    ),
+  briefing: () =>
+    'Lin: “The money to stage Qinghe would keep three counties’ clinics stocked for a month. The visitor will be pleased, and the people on the other side of the hill will watch the motorcade go by.”',
+  choices: [
+    {
+      id: 'stage-visit',
+      label: 'Prepare the showcase route through Qinghe',
+      risk: 'Impressive in Beijing’s eyes and softens central concerns, at the expense of poorer counties.',
+      charges: [{ id: 'stagedRecovery' }],
+      outcomes: [
+        {
+          effects: [m('treasury', -5), m('capacity', 6), m('welfare', -4), { type: 'flagAdd', key: 'beijingConcerns', delta: -1 }],
+          text: 'The visiting official praises the province’s swift recovery in front of the cameras. Two valleys over, county clinics are told their supply shipments are postponed.',
+        },
+      ],
+    },
+    {
+      id: 'show-reality',
+      label: 'Take the official to the counties that are still struggling',
+      risk: 'Beijing may note the unfinished work, or respect the candour.',
+      outcomes: [
+        {
+          chance: 0.4,
+          effects: [m('capacity', -4), m('welfare', 3), flag('beijingWatching')],
+          text: 'The official asks sharp questions in front of your staff and leaves without a speech. Villagers are surprised that anyone came at all.',
+        },
+        {
+          effects: [m('capacity', -1), m('welfare', 3)],
+          text: 'The official walks the muddy lanes, listens quietly, and remarks on the drive back that it is rare to be shown what has not been painted.',
+        },
+      ],
+    },
+    {
+      id: 'decline-tour',
+      label: 'Keep the visit brief at the provincial capital and send the funds to the counties',
+      outcomes: [
+        {
+          effects: [m('treasury', -6), m('capacity', -2), m('welfare', 4)],
+          text: 'The briefing in the capital is polite and unremarkable. The money reaches the hill counties by the end of the week.',
+        },
+      ],
+    },
+  ],
+};
+
 const interimInspection = {
   id: 'interim-inspection',
   title: 'An Early Inspection',
@@ -481,7 +646,14 @@ const interimInspection = {
     {
       id: 'continue',
       label: s.flags.interimVerdict === 'removed' ? 'Hand over your office' : 'Continue',
-      outcomes: [{ effects: [], text: '' }],
+      outcomes: [
+        {
+          effects: [],
+          text: s.flags.interimVerdict === 'removed'
+            ? 'You sign the handover papers before evening. Your tenure ends halfway through the year.'
+            : 'The inspection group files its note and returns to Beijing. The winter is over, and the province still has a spring to get through.',
+        },
+      ],
     },
   ],
 };
@@ -497,5 +669,8 @@ export const SPRING_EVENTS = [
   debtService,
   unrest,
   reconstruction,
+  taxQuota,
+  growthTarget,
+  inspectionVisit,
   interimInspection,
 ];
